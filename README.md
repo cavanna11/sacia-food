@@ -4,8 +4,10 @@ Plataforma SaaS de pedidos y gestión para comercios gastronómicos (Argentina).
 Cada comercio tiene su tienda con marca propia en un subdominio, gestión de
 pedidos en tiempo real y cobros sin comisión por pedido.
 
-**Estado: Fase 0 completada** — fundaciones multi-tenant (routing por
-subdominio, aislamiento de datos por tenant, design tokens, tenants semilla).
+**Estado: Fase 0 completada + Fase 1 entrega 1 (catálogo)** — fundaciones
+multi-tenant (routing por subdominio, aislamiento de datos, design tokens,
+tenants semilla) + gestión de catálogo en el panel y menú público en tiempo
+real en el storefront.
 
 ## Stack
 
@@ -120,7 +122,11 @@ firestore.rules             # la cerradura dura del aislamiento
 
 ## Roadmap
 
-- **Fase 1 (MVP vendible)**: catálogo + carrito + pedidos en vivo + KDS +
-  MercadoPago + anti-fraude capas 1–3.
+- **Fase 1 (MVP vendible)**:
+  - ✅ Entrega 1: catálogo (CRUD en panel + menú público en tiempo real).
+  - ⏭ Entrega 2: carrito + `createOrder` en Cloud Functions + cola de
+    pedidos en vivo en el panel.
+  - ⏭ Entrega 3: KDS, MercadoPago (Checkout Pro), efectivo con
+    confirmación, anti-fraude capas 1–3, notificaciones de estado.
 - **Fase 2**: landing comercial + alta self-service con provisioning.
 - **Fase 3+**: Plan Presencia, Plan Pro (loyalty, BI, tracking GPS), add-ons.

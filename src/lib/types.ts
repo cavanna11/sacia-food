@@ -37,3 +37,16 @@ export interface TenantClaims {
   tenantId?: string;
   role?: UserRole;
 }
+
+/** Producto del catálogo (tenants/{id}/products/{productId}). */
+export interface ProductDoc {
+  name: string;
+  description?: string;
+  /** Precio en pesos argentinos, entero. */
+  price: number;
+  category: string;
+  available: boolean;
+  imageUrl?: string;
+  createdAt: number;
+  updatedAt: number;
+}

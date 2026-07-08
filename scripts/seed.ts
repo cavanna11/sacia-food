@@ -34,6 +34,12 @@ const TENANTS = [
       font: "sans",
     },
     owner: { email: "dueno@resto-a.test", password: "secret123" },
+    products: [
+      { id: "clasica", name: "Burger Clásica", description: "Carne, cheddar, lechuga y tomate", price: 8500, category: "Hamburguesas", available: true },
+      { id: "doble", name: "Doble Cheddar", description: "Doble carne, doble cheddar, panceta", price: 11000, category: "Hamburguesas", available: true },
+      { id: "papas", name: "Papas con cheddar", description: "Porción grande", price: 5500, category: "Acompañamientos", available: true },
+      { id: "gaseosa", name: "Gaseosa 500ml", price: 2500, category: "Bebidas", available: true },
+    ],
   },
   {
     id: "resto-b",
@@ -44,6 +50,12 @@ const TENANTS = [
       font: "sans",
     },
     owner: { email: "dueno@resto-b.test", password: "secret123" },
+    products: [
+      { id: "muzza", name: "Muzzarella", description: "Salsa, muzza y aceitunas", price: 9000, category: "Pizzas", available: true },
+      { id: "napo", name: "Napolitana", description: "Muzza, tomate en rodajas y ajo", price: 10500, category: "Pizzas", available: true },
+      { id: "faina", name: "Fainá", price: 2000, category: "Acompañamientos", available: true },
+      { id: "birra", name: "Cerveza artesanal 473ml", price: 4000, category: "Bebidas", available: true },
+    ],
   },
 ];
 
@@ -67,6 +79,13 @@ async function main() {
       },
       { merge: true },
     );
+
+    for (const { id, ...product } of t.products) {
+      await db.doc(`tenants/${t.id}/products/${id}`).set(
+        { ...product, createdAt: Date.now(), updatedAt: Date.now() },
+        { merge: true },
+      );
+    }
 
     const user = await ensureUser(t.owner.email, t.owner.password);
     // La cerradura 3: el usuario queda atado a su tenant vía custom claims.

@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -17,20 +19,28 @@ type GateState =
   | { kind: "wrong-tenant"; email: string }
   | { kind: "authorized"; user: User; claims: TenantClaims };
 
+const NAV = [
+  { href: "/panel", label: "Inicio" },
+  { href: "/panel/catalogo", label: "Catálogo" },
+];
+
 /**
- * Guard del panel: exige sesión y que el custom claim `tenantId` del token
- * coincida con el tenant del subdominio. Un usuario de Resto A logueado en
- * el panel de Resto B ve "sin acceso" — y aunque forzara el cliente, las
- * Security Rules le niegan los datos.
+ * Shell del panel: gate de auth + barra de navegación.
+ * Exige sesión y que el custom claim `tenantId` coincida con el tenant del
+ * subdominio. Un usuario de Resto A en el panel de Resto B ve "sin acceso" —
+ * y aunque forzara el cliente, las Security Rules le niegan los datos.
  */
-export function PanelGate({
+export function PanelShell({
   tenantId,
   tenantName,
+  children,
 }: {
   tenantId: string;
   tenantName: string;
+  children: ReactNode;
 }) {
   const [state, setState] = useState<GateState>({ kind: "loading" });
+  const pathname = usePathname();
 
   useEffect(() => {
     return onAuthStateChanged(clientAuth, async (user) => {
@@ -71,34 +81,37 @@ export function PanelGate({
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Panel · {tenantName}</h1>
-          <p className="mt-1 text-sm text-muted">
-            {state.user.email} <Badge tone="accent">{state.claims.role}</Badge>
-          </p>
+    <div className="flex flex-1 flex-col">
+      <header className="border-b border-border-soft bg-card">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+          <span className="font-semibold">{tenantName}</span>
+          <nav className="flex items-center gap-1">
+            {NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`rounded-control px-3 py-1.5 text-sm font-medium transition-colors ${
+                  pathname === item.href
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted hover:text-strong"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="hidden text-sm text-muted sm:inline">
+              {state.user.email} <Badge tone="accent">{state.claims.role}</Badge>
+            </span>
+            <Button variant="ghost" onClick={() => signOut(clientAuth)}>
+              Salir
+            </Button>
+          </div>
         </div>
-        <Button variant="ghost" onClick={() => signOut(clientAuth)}>
-          Salir
-        </Button>
-      </div>
-
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardTitle>Pedidos</CardTitle>
-          <CardDescription>La cola de pedidos en vivo llega en Fase 1.</CardDescription>
-        </Card>
-        <Card>
-          <CardTitle>Catálogo</CardTitle>
-          <CardDescription>Alta de productos y precios, en Fase 1.</CardDescription>
-        </Card>
-        <Card>
-          <CardTitle>Cobros</CardTitle>
-          <CardDescription>MercadoPago y efectivo, en Fase 1.</CardDescription>
-        </Card>
-      </div>
-    </main>
+      </header>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
+    </div>
   );
 }
 
@@ -148,7 +161,7 @@ function LoginForm({ tenantName }: { tenantName: string }) {
   );
 }
 
-function CenteredNote({ children }: { children: React.ReactNode }) {
+function CenteredNote({ children }: { children: ReactNode }) {
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-16 text-center">
       <div>{children}</div>
