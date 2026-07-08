@@ -10,7 +10,8 @@
     "emulators": "npm --prefix functions run build && firebase emulators:start --only auth,firestore,functions --project demo-gestion-pedidos",
     "seed": "tsx scripts/seed.ts",
     "test:rules": "firebase emulators:exec --only firestore --project demo-gestion-pedidos \"vitest run tests/rules\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run tests/unit"
   },
   "dependencies": {
     "firebase": "^12.15.0",

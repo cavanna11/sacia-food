@@ -225,6 +225,32 @@ describe("config operativa del tenant (solo el dueño, solo esa clave)", () => {
   });
 });
 
+describe("lista negra de teléfonos (staff del tenant)", () => {
+  it("PERMITE al staff bloquear y desbloquear en su tenant", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertSucceeds(
+      setDoc(doc(dbA, "tenants/resto-a/blocklist/1155550000"), {
+        phone: "11 5555-0000",
+        createdAt: Date.now(),
+      }),
+    );
+    await assertSucceeds(getDoc(doc(dbA, "tenants/resto-a/blocklist/1155550000")));
+  });
+
+  it("DENIEGA al staff de A tocar la blocklist de B", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(
+      setDoc(doc(dbA, "tenants/resto-b/blocklist/1155550000"), { phone: "x" }),
+    );
+    await assertFails(getDocs(collection(dbA, "tenants/resto-b/blocklist")));
+  });
+
+  it("DENIEGA a un anónimo leer la blocklist", async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(db, "tenants/resto-a/blocklist/1155550000")));
+  });
+});
+
 describe("tracking público del pedido (sin PII)", () => {
   it("PERMITE a un anónimo leer el tracking por ID exacto", async () => {
     const db = env.unauthenticatedContext().firestore();

@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 import { clientDb } from "@/lib/firebase/client";
 import { getOpenState } from "@/lib/opening-hours";
 import type { TenantConfig, TenantDoc } from "@/lib/types";
@@ -169,6 +176,79 @@ export function ConfigForm({ tenantId }: { tenantId: string }) {
           </Button>
         </form>
       </Card>
+
+      <Blocklist tenantId={tenantId} />
     </>
+  );
+}
+
+/** Lista negra de teléfonos: los pedidos de estos números se rechazan solos. */
+function Blocklist({ tenantId }: { tenantId: string }) {
+  const [entries, setEntries] = useState<{ id: string; phone: string; reason?: string }[]>([]);
+
+  useEffect(() => {
+    return onSnapshot(collection(clientDb, `tenants/${tenantId}/blocklist`), (snap) =>
+      setEntries(
+        snap.docs.map((d) => ({ id: d.id, ...(d.data() as { phone: string; reason?: string }) })),
+      ),
+    );
+  }, [tenantId]);
+
+  async function block(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formEl = e.currentTarget;
+    const form = new FormData(formEl);
+    const phone = String(form.get("phone")).trim();
+    const phoneKey = phone.replace(/\D/g, "");
+    if (phoneKey.length < 6) return;
+    await setDoc(doc(clientDb, `tenants/${tenantId}/blocklist/${phoneKey}`), {
+      phone,
+      reason: String(form.get("reason")).trim(),
+      createdAt: Date.now(),
+    });
+    formEl.reset();
+  }
+
+  return (
+    <Card className="mt-4">
+      <CardTitle>Teléfonos bloqueados</CardTitle>
+      <CardDescription>
+        Los pedidos de estos números se rechazan automáticamente, sin avisarle
+        al que molesta que está bloqueado.
+      </CardDescription>
+
+      {entries.length > 0 && (
+        <ul className="mt-4 flex flex-col gap-2">
+          {entries.map((entry) => (
+            <li
+              key={entry.id}
+              className="flex items-center justify-between rounded-control border border-border-soft px-3 py-2 text-sm"
+            >
+              <span>
+                <span className="font-medium">{entry.phone}</span>
+                {entry.reason && <span className="text-muted"> · {entry.reason}</span>}
+              </span>
+              <Button
+                variant="ghost"
+                className="!px-2 !py-1 text-xs"
+                onClick={() =>
+                  deleteDoc(doc(clientDb, `tenants/${tenantId}/blocklist/${entry.id}`))
+                }
+              >
+                Desbloquear
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form onSubmit={block} className="mt-4 flex flex-wrap items-end gap-4">
+        <Input label="Teléfono" name="phone" type="tel" placeholder="11 5555-5555" required />
+        <Input label="Motivo (opcional)" name="reason" placeholder="Pedidos falsos" />
+        <Button type="submit" variant="danger">
+          Bloquear
+        </Button>
+      </form>
+    </Card>
   );
 }

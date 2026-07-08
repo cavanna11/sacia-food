@@ -154,6 +154,18 @@ export const createOrder = onCall(async (request) => {
     );
   }
 
+  // Anti-fraude capa 5: teléfonos bloqueados por el comercio.
+  const phoneKey = phone.replace(/\D/g, ""); // solo dígitos como clave
+  const blocked = await db.doc(`tenants/${tenantId}/blocklist/${phoneKey}`).get();
+  if (blocked.exists) {
+    // Mensaje genérico a propósito: no le confirmamos al abusador que
+    // está en la lista.
+    throw new HttpsError(
+      "failed-precondition",
+      "No pudimos tomar tu pedido. Comunicate con el local.",
+    );
+  }
+
   // Zona de reparto: si el comercio configuró zonas, el delivery exige una
   // y el costo de envío sale de la config del servidor, no del cliente.
   let deliveryFee = 0;
@@ -206,7 +218,6 @@ export const createOrder = onCall(async (request) => {
 
   // ── Creación atómica: rate limit + número secuencial + pedido ─────────
   const counterRef = db.doc(`tenants/${tenantId}/counters/orders`);
-  const phoneKey = phone.replace(/\D/g, ""); // solo dígitos como clave
   const rateRef = db.doc(`tenants/${tenantId}/ratelimits/${phoneKey}`);
   const orderRef = db.collection(`tenants/${tenantId}/orders`).doc();
 

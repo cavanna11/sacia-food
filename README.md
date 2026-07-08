@@ -52,10 +52,11 @@ Usuarios semilla: `dueno@resto-a.test` / `secret123` y `dueno@resto-b.test` / `s
 ## Test de aislamiento (definition of done de la Fase 0)
 
 ```bash
-npm run test:rules
+npm run test:rules   # Security Rules contra el emulador (aislamiento)
+npm run test:unit    # lógica pura: subdominios y horarios de apertura
 ```
 
-Levanta el emulador de Firestore, carga `firestore.rules` y verifica, entre
+`test:rules` levanta el emulador de Firestore, carga `firestore.rules` y verifica, entre
 otros, que **un usuario de Resto A que intenta leer un pedido de Resto B por
 ID recibe `PERMISSION_DENIED`** desde las Security Rules (no desde el
 frontend). También cubre: listado de tenants prohibido, pedidos ilegibles sin
@@ -132,7 +133,8 @@ firestore.rules             # la cerradura dura del aislamiento
   - ✅ Entrega 3 (parte local): KDS con timers y colores por antigüedad
     (`/panel/cocina`), alerta sonora de pedido nuevo, estadísticas del día
     (`/panel`), horarios de apertura + pausa manual (`/panel/config`,
-    enforcement server-side), rate limit por teléfono (3 pedidos/30 min) y
+    enforcement server-side), zonas de reparto con costo por zona, rate
+    limit por teléfono (3 pedidos/30 min), lista negra de teléfonos y
     tracking público sin PII (`/pedido/{id}`, trigger `syncTracking`).
   - ⏭ Entrega 3 (requiere cuentas externas): MercadoPago Checkout Pro
     (OAuth por tenant + webhook `confirmPayment`), OTP por WhatsApp/SMS,

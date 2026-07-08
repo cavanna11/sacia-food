@@ -76,6 +76,12 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      match /blocklist/{phoneKey} {
+        // Lista negra de teléfonos (anti-fraude capa 5): la gestiona el
+        // staff del tenant. El cliente final jamás la ve.
+        allow read, write: if isStaff(tenantId) || isSuperadmin();
+      }
+
       match /tracking/{orderId} {
         // Estado público del pedido, sin PII (lo publica un trigger).
         // Solo `get` con el ID exacto (inadivinable); nunca listar.

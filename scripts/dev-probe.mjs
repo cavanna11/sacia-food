@@ -28,6 +28,8 @@ if (mode === "paused") {
   for (let i = 1; i <= 4; i++) {
     console.log(`pedido ${i}:`, await call(order("11 7777-3333")));
   }
+} else if (mode === "blocked") {
+  console.log("teléfono bloqueado:", await call(order("11 0000-1111")));
 } else if (mode === "zones") {
   const base = order("11 6666-2222");
   const delivery = { ...base, channel: "delivery", address: "Calle Falsa 123" };
