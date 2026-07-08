@@ -1,0 +1,128 @@
+/**
+ * Test de aislamiento multi-tenant (Definition of Done de la Fase 0).
+ *
+ * Corre contra el emulador de Firestore con las reglas reales del repo:
+ *   npm run test:rules
+ *
+ * El caso central: un usuario de Resto A intenta, a propósito, leer un
+ * pedido de Resto B por su ID. Las Security Rules deben devolver
+ * PERMISSION_DENIED — la base rechaza, no el frontend.
+ */
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import {
+  assertFails,
+  assertSucceeds,
+  initializeTestEnvironment,
+  type RulesTestEnvironment,
+} from "@firebase/rules-unit-testing";
+import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import { afterAll, beforeAll, describe, it } from "vitest";
+
+let env: RulesTestEnvironment;
+
+const OWNER_A = { tenantId: "resto-a", role: "owner" };
+const OWNER_B = { tenantId: "resto-b", role: "owner" };
+
+beforeAll(async () => {
+  env = await initializeTestEnvironment({
+    projectId: "demo-gestion-pedidos",
+    firestore: {
+      rules: readFileSync(path.resolve(__dirname, "../../firestore.rules"), "utf8"),
+    },
+  });
+
+  // Datos semilla (Admin SDK, sin reglas): un pedido y un producto por tenant.
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    for (const t of ["resto-a", "resto-b"]) {
+      await setDoc(doc(db, `tenants/${t}`), {
+        subdomain: t,
+        branding: { name: t, colors: { primary: "#000", accent: "#fff", mode: "light" } },
+      });
+      await setDoc(doc(db, `tenants/${t}/orders/order-1`), { total: 1000, status: "nuevo" });
+      await setDoc(doc(db, `tenants/${t}/products/prod-1`), { name: "Producto", price: 500 });
+      await setDoc(doc(db, `tenants/${t}/customers/cust-1`), { phone: "+54..." });
+    }
+  });
+});
+
+afterAll(async () => {
+  await env.cleanup();
+});
+
+describe("aislamiento entre tenants", () => {
+  it("DENIEGA a un usuario de Resto A leer un pedido de Resto B por ID", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(getDoc(doc(dbA, "tenants/resto-b/orders/order-1")));
+  });
+
+  it("DENIEGA a Resto A listar los pedidos de Resto B", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(getDocs(collection(dbA, "tenants/resto-b/orders")));
+  });
+
+  it("DENIEGA a Resto A leer los clientes de Resto B", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(getDoc(doc(dbA, "tenants/resto-b/customers/cust-1")));
+  });
+
+  it("DENIEGA a Resto A escribir productos de Resto B", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(
+      setDoc(doc(dbA, "tenants/resto-b/products/hackeado"), { name: "x", price: 1 }),
+    );
+  });
+
+  it("PERMITE a cada dueño leer los pedidos de su propio tenant", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    const dbB = env.authenticatedContext("user-b", OWNER_B).firestore();
+    await assertSucceeds(getDoc(doc(dbA, "tenants/resto-a/orders/order-1")));
+    await assertSucceeds(getDoc(doc(dbB, "tenants/resto-b/orders/order-1")));
+  });
+
+  it("PERMITE al staff administrar el catálogo de su propio tenant", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertSucceeds(
+      setDoc(doc(dbA, "tenants/resto-a/products/nuevo"), { name: "Burga", price: 9000 }),
+    );
+  });
+});
+
+describe("acceso anónimo (cliente final sin cuenta)", () => {
+  it("PERMITE leer el doc del tenant (branding) y el menú", async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(db, "tenants/resto-a")));
+    await assertSucceeds(getDocs(collection(db, "tenants/resto-a/products")));
+  });
+
+  it("DENIEGA leer pedidos y clientes sin estar logueado", async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(db, "tenants/resto-a/orders/order-1")));
+    await assertFails(getDoc(doc(db, "tenants/resto-a/customers/cust-1")));
+  });
+
+  it("DENIEGA enumerar los tenants de la plataforma", async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertFails(getDocs(collection(db, "tenants")));
+  });
+});
+
+describe("escrituras sensibles bloqueadas al cliente", () => {
+  it("DENIEGA crear pedidos desde el cliente, incluso en el propio tenant", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(
+      setDoc(doc(dbA, "tenants/resto-a/orders/nuevo"), { total: 1, status: "nuevo" }),
+    );
+  });
+
+  it("DENIEGA modificar el doc del tenant (plan, branding) desde el cliente", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(setDoc(doc(dbA, "tenants/resto-a"), { plan: "pro" }));
+  });
+
+  it("DENIEGA leer los secretos privados del propio tenant", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(getDoc(doc(dbA, "tenants/resto-a/private/secrets")));
+  });
+});

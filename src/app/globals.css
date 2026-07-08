@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens de la plataforma.
+ *
+ * Los valores --tenant-* son la "piel" de cada comercio: los inyecta el layout
+ * del tenant leyendo su `branding` en Firestore. Acá viven solo los defaults
+ * (marca de la plataforma) que aplican al sitio raíz y como fallback.
+ * La estructura NUNCA hardcodea un color: siempre consume un token.
+ */
+:root {
+  --tenant-primary: #f97316;
+  --tenant-on-primary: #ffffff;
+  --tenant-accent: #0ea5e9;
+  --tenant-on-accent: #ffffff;
+
+  --surface-bg: #fafafa;
+  --surface-card: #ffffff;
+  --surface-border: #e5e5e5;
+  --text-strong: #171717;
+  --text-muted: #737373;
+
+  --radius-card: 1rem;
+  --radius-control: 0.625rem;
+}
+
+/* Modo oscuro por tenant: el layout agrega data-mode="dark" según su branding. */
+[data-mode="dark"] {
+  --surface-bg: #0a0a0a;
+  --surface-card: #171717;
+  --surface-border: #262626;
+  --text-strong: #fafafa;
+  --text-muted: #a3a3a3;
+}
+
+/* Mapeo de tokens a utilidades Tailwind (bg-primary, text-muted, etc.). */
+@theme inline {
+  --color-primary: var(--tenant-primary);
+  --color-on-primary: var(--tenant-on-primary);
+  --color-accent: var(--tenant-accent);
+  --color-on-accent: var(--tenant-on-accent);
+  --color-bg: var(--surface-bg);
+  --color-card: var(--surface-card);
+  --color-border-soft: var(--surface-border);
+  --color-strong: var(--text-strong);
+  --color-muted: var(--text-muted);
+  --radius-card: var(--radius-card);
+  --radius-control: var(--radius-control);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--surface-bg);
+  color: var(--text-strong);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
