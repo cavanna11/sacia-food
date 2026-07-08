@@ -5,7 +5,8 @@ import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { clientDb } from "@/lib/firebase/client";
 import { formatARS } from "@/lib/format";
 import type { ProductDoc } from "@/lib/types";
-import { Card } from "@/components/ui";
+import { Button, Card } from "@/components/ui";
+import { useCart } from "./CartProvider";
 
 type Product = ProductDoc & { id: string };
 
@@ -16,6 +17,7 @@ type Product = ProductDoc & { id: string };
  */
 export function Menu({ tenantId }: { tenantId: string }) {
   const [products, setProducts] = useState<Product[] | null>(null);
+  const cart = useCart();
 
   useEffect(() => {
     const q = query(
@@ -70,9 +72,18 @@ export function Menu({ tenantId }: { tenantId: string }) {
                     <p className="mt-0.5 text-sm text-muted">{p.description}</p>
                   )}
                 </div>
-                <span className="shrink-0 font-semibold text-primary">
-                  {formatARS(p.price)}
-                </span>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <span className="font-semibold text-primary">{formatARS(p.price)}</span>
+                  <Button
+                    variant="secondary"
+                    className="!px-3 !py-1.5 text-xs"
+                    onClick={() =>
+                      cart.add({ productId: p.id, name: p.name, price: p.price })
+                    }
+                  >
+                    Agregar
+                  </Button>
+                </div>
               </Card>
             ))}
           </div>

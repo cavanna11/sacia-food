@@ -5,6 +5,7 @@
 import { getApps, initializeApp } from "firebase/app";
 import { connectAuthEmulator, getAuth } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -17,6 +18,7 @@ const app = getApps()[0] ?? initializeApp(firebaseConfig);
 
 export const clientAuth = getAuth(app);
 export const clientDb = getFirestore(app);
+export const clientFunctions = getFunctions(app);
 
 declare global {
   // Evita reconectar emuladores con el hot reload de Next.
@@ -30,5 +32,6 @@ if (
 ) {
   connectAuthEmulator(clientAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(clientDb, "127.0.0.1", 8080);
+  connectFunctionsEmulator(clientFunctions, "127.0.0.1", 5001);
   globalThis.__emulatorsConnected = true;
 }

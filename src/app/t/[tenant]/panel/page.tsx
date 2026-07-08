@@ -15,10 +15,14 @@ export default function PanelHomePage() {
             </CardDescription>
           </Card>
         </Link>
-        <Card>
-          <CardTitle>Pedidos</CardTitle>
-          <CardDescription>La cola de pedidos en vivo llega en la próxima entrega.</CardDescription>
-        </Card>
+        <Link href="/panel/pedidos">
+          <Card className="h-full transition-colors hover:border-primary">
+            <CardTitle>Pedidos</CardTitle>
+            <CardDescription>
+              La cola en vivo: aceptá, avanzá estados y marcá cobrado.
+            </CardDescription>
+          </Card>
+        </Link>
         <Card>
           <CardTitle>Cobros</CardTitle>
           <CardDescription>MercadoPago y efectivo, próximamente.</CardDescription>

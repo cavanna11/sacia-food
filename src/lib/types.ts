@@ -38,6 +38,61 @@ export interface TenantClaims {
   role?: UserRole;
 }
 
+/**
+ * Estados del pedido (referencia de dominio: AB Burgers).
+ * `por_confirmar`: no dispara a cocina hasta que el comercio acepta
+ * (anti-fraude capa 3 — efectivo y clientes nuevos).
+ */
+export type OrderStatus =
+  | "por_confirmar"
+  | "recibido"
+  | "en_preparacion"
+  | "listo"
+  | "en_camino"
+  | "entregado"
+  | "rechazado";
+
+export type OrderChannel = "takeaway" | "delivery";
+export type PaymentMethod = "cash"; // mercadopago llega en la entrega 3
+export type PaymentStatus = "pending" | "paid";
+
+export interface OrderItem {
+  productId: string;
+  /** Nombre y precio congelados al momento del pedido (server-side). */
+  name: string;
+  price: number;
+  qty: number;
+  subtotal: number;
+}
+
+/** Pedido (tenants/{id}/orders/{orderId}). Se crea SOLO via Cloud Function. */
+export interface OrderDoc {
+  /** Número secuencial por tenant, para cantar en cocina ("¡el 42!"). */
+  number: number;
+  items: OrderItem[];
+  total: number;
+  customer: { name: string; phone: string };
+  channel: OrderChannel;
+  address?: string;
+  notes?: string;
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
+  status: OrderStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Payload que el storefront manda a la Cloud Function createOrder. */
+export interface CreateOrderInput {
+  tenantId: string;
+  items: { productId: string; qty: number }[];
+  customer: { name: string; phone: string };
+  channel: OrderChannel;
+  address?: string;
+  notes?: string;
+  paymentMethod: PaymentMethod;
+}
+
 /** Producto del catálogo (tenants/{id}/products/{productId}). */
 export interface ProductDoc {
   name: string;

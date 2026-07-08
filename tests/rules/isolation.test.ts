@@ -16,7 +16,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 import { afterAll, beforeAll, describe, it } from "vitest";
 
 let env: RulesTestEnvironment;
@@ -40,7 +40,12 @@ beforeAll(async () => {
         subdomain: t,
         branding: { name: t, colors: { primary: "#000", accent: "#fff", mode: "light" } },
       });
-      await setDoc(doc(db, `tenants/${t}/orders/order-1`), { total: 1000, status: "nuevo" });
+      await setDoc(doc(db, `tenants/${t}/orders/order-1`), {
+        total: 1000,
+        status: "por_confirmar",
+        paymentStatus: "pending",
+        updatedAt: 0,
+      });
       await setDoc(doc(db, `tenants/${t}/products/prod-1`), { name: "Producto", price: 500 });
       await setDoc(doc(db, `tenants/${t}/customers/cust-1`), { phone: "+54..." });
     }
@@ -124,5 +129,54 @@ describe("escrituras sensibles bloqueadas al cliente", () => {
   it("DENIEGA leer los secretos privados del propio tenant", async () => {
     const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
     await assertFails(getDoc(doc(dbA, "tenants/resto-a/private/secrets")));
+  });
+});
+
+describe("operación de pedidos por el staff (campos restringidos)", () => {
+  it("PERMITE al staff avanzar el estado de un pedido propio", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertSucceeds(
+      updateDoc(doc(dbA, "tenants/resto-a/orders/order-1"), {
+        status: "recibido",
+        updatedAt: Date.now(),
+      }),
+    );
+  });
+
+  it("PERMITE al staff marcar cobrado un pedido propio", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertSucceeds(
+      updateDoc(doc(dbA, "tenants/resto-a/orders/order-1"), {
+        paymentStatus: "paid",
+        updatedAt: Date.now(),
+      }),
+    );
+  });
+
+  it("DENIEGA al staff modificar el total de un pedido", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(
+      updateDoc(doc(dbA, "tenants/resto-a/orders/order-1"), {
+        total: 1,
+        updatedAt: Date.now(),
+      }),
+    );
+  });
+
+  it("DENIEGA al staff operar pedidos de OTRO tenant", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(
+      updateDoc(doc(dbA, "tenants/resto-b/orders/order-1"), {
+        status: "recibido",
+        updatedAt: Date.now(),
+      }),
+    );
+  });
+
+  it("DENIEGA a un anónimo tocar un pedido", async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertFails(
+      updateDoc(doc(db, "tenants/resto-a/orders/order-1"), { status: "entregado" }),
+    );
   });
 });

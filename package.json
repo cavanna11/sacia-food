@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "emulators": "firebase emulators:start --only auth,firestore --project demo-gestion-pedidos",
+    "emulators": "npm --prefix functions run build && firebase emulators:start --only auth,firestore,functions --project demo-gestion-pedidos",
     "seed": "tsx scripts/seed.ts",
     "test:rules": "firebase emulators:exec --only firestore --project demo-gestion-pedidos \"vitest run tests/rules\"",
     "typecheck": "tsc --noEmit"
