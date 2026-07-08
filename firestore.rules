@@ -37,8 +37,14 @@ service cloud.firestore {
       // lo necesita antes de cualquier login. Solo `get`, nunca `list`.
       allow get: if true;
       allow list: if isSuperadmin();
-      // Alta/edición de tenants: solo Cloud Functions (provisioning).
-      allow write: if false;
+      // Alta de tenants: solo Cloud Functions (provisioning).
+      allow create, delete: if false;
+      // El dueño puede editar SOLO su config operativa (horarios, pausa).
+      // Plan, subdominio, branding y estado siguen siendo server-side.
+      allow update: if belongsTo(tenantId)
+        && request.auth.token.role == 'owner'
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['config']);
 
       match /products/{productId} {
         // El menú es público (el cliente final lo ve sin cuenta).
@@ -67,6 +73,14 @@ service cloud.firestore {
         // Cada miembro del staff puede ver el listado de su propio equipo.
         allow get, list: if belongsTo(tenantId) || isSuperadmin();
         // Altas/bajas de usuarios: solo Cloud Functions (setean claims).
+        allow write: if false;
+      }
+
+      match /tracking/{orderId} {
+        // Estado público del pedido, sin PII (lo publica un trigger).
+        // Solo `get` con el ID exacto (inadivinable); nunca listar.
+        allow get: if true;
+        allow list: if false;
         allow write: if false;
       }
 

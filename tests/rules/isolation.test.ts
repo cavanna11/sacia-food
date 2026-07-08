@@ -48,6 +48,12 @@ beforeAll(async () => {
       });
       await setDoc(doc(db, `tenants/${t}/products/prod-1`), { name: "Producto", price: 500 });
       await setDoc(doc(db, `tenants/${t}/customers/cust-1`), { phone: "+54..." });
+      await setDoc(doc(db, `tenants/${t}/tracking/order-1`), {
+        number: 1,
+        status: "recibido",
+        channel: "takeaway",
+        total: 1000,
+      });
     }
   });
 });
@@ -177,6 +183,63 @@ describe("operación de pedidos por el staff (campos restringidos)", () => {
     const db = env.unauthenticatedContext().firestore();
     await assertFails(
       updateDoc(doc(db, "tenants/resto-a/orders/order-1"), { status: "entregado" }),
+    );
+  });
+});
+
+describe("config operativa del tenant (solo el dueño, solo esa clave)", () => {
+  it("PERMITE al dueño editar la config de su tenant", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertSucceeds(
+      updateDoc(doc(dbA, "tenants/resto-a"), {
+        config: { acceptingOrders: false },
+      }),
+    );
+  });
+
+  it("DENIEGA al dueño cambiarse el plan o el subdominio", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(updateDoc(doc(dbA, "tenants/resto-a"), { plan: "pro" }));
+    await assertFails(
+      updateDoc(doc(dbA, "tenants/resto-a"), {
+        config: { acceptingOrders: true },
+        subdomain: "otro",
+      }),
+    );
+  });
+
+  it("DENIEGA al dueño de A tocar la config de B", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(
+      updateDoc(doc(dbA, "tenants/resto-b"), { config: { acceptingOrders: false } }),
+    );
+  });
+
+  it("DENIEGA a un rol no-dueño (cocina) editar la config", async () => {
+    const dbK = env
+      .authenticatedContext("cook", { tenantId: "resto-a", role: "kitchen" })
+      .firestore();
+    await assertFails(
+      updateDoc(doc(dbK, "tenants/resto-a"), { config: { acceptingOrders: false } }),
+    );
+  });
+});
+
+describe("tracking público del pedido (sin PII)", () => {
+  it("PERMITE a un anónimo leer el tracking por ID exacto", async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(db, "tenants/resto-a/tracking/order-1")));
+  });
+
+  it("DENIEGA listar los trackings (los IDs no se descubren)", async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertFails(getDocs(collection(db, "tenants/resto-a/tracking")));
+  });
+
+  it("DENIEGA escribir el tracking desde el cliente (solo el trigger)", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(
+      updateDoc(doc(dbA, "tenants/resto-a/tracking/order-1"), { status: "entregado" }),
     );
   });
 });

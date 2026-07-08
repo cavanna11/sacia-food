@@ -75,6 +75,7 @@ async function main() {
         plan: "gestion",
         status: "active",
         branding: t.branding,
+        config: { acceptingOrders: true },
         createdAt: Date.now(),
       },
       { merge: true },

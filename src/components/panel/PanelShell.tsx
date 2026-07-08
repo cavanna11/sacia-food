@@ -22,7 +22,9 @@ type GateState =
 const NAV = [
   { href: "/panel", label: "Inicio" },
   { href: "/panel/pedidos", label: "Pedidos" },
+  { href: "/panel/cocina", label: "Cocina" },
   { href: "/panel/catalogo", label: "Catálogo" },
+  { href: "/panel/config", label: "Config" },
 ];
 
 /**

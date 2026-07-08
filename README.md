@@ -4,10 +4,12 @@ Plataforma SaaS de pedidos y gestión para comercios gastronómicos (Argentina).
 Cada comercio tiene su tienda con marca propia en un subdominio, gestión de
 pedidos en tiempo real y cobros sin comisión por pedido.
 
-**Estado: Fase 0 completada + Fase 1 entregas 1 y 2** — fundaciones
-multi-tenant, catálogo con menú público en tiempo real, y ciclo completo de
-pedidos: carrito → checkout en efectivo → Cloud Function `createOrder` →
-cola de pedidos en vivo en el panel (aceptar/rechazar, estados, cobro).
+**Estado: Fase 0 + Fase 1 entregas 1, 2 y 3 (parte local)** — fundaciones
+multi-tenant, catálogo en tiempo real, ciclo completo de pedidos (carrito →
+`createOrder` → cola en vivo), KDS con timers, alerta sonora, estadísticas
+del día, horarios de apertura/pausa, rate limit por teléfono y tracking
+público del pedido para el cliente. Falta de la Entrega 3: MercadoPago,
+OTP y Turnstile (requieren cuentas externas).
 
 ## Stack
 
@@ -127,7 +129,13 @@ firestore.rules             # la cerradura dura del aislamiento
   - ✅ Entrega 2: carrito + `createOrder` en Cloud Functions (precios del
     server, número secuencial, nace "por confirmar") + cola de pedidos en
     vivo con aceptar/rechazar, avance de estados y marcar cobrado.
-  - ⏭ Entrega 3: KDS, MercadoPago (Checkout Pro), anti-fraude capas 1–3
-    (OTP, Turnstile, límites), notificaciones de estado al cliente.
+  - ✅ Entrega 3 (parte local): KDS con timers y colores por antigüedad
+    (`/panel/cocina`), alerta sonora de pedido nuevo, estadísticas del día
+    (`/panel`), horarios de apertura + pausa manual (`/panel/config`,
+    enforcement server-side), rate limit por teléfono (3 pedidos/30 min) y
+    tracking público sin PII (`/pedido/{id}`, trigger `syncTracking`).
+  - ⏭ Entrega 3 (requiere cuentas externas): MercadoPago Checkout Pro
+    (OAuth por tenant + webhook `confirmPayment`), OTP por WhatsApp/SMS,
+    Cloudflare Turnstile, notificaciones de estado al cliente.
 - **Fase 2**: landing comercial + alta self-service con provisioning.
 - **Fase 3+**: Plan Presencia, Plan Pro (loyalty, BI, tracking GPS), add-ons.

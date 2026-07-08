@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { clientDb } from "@/lib/firebase/client";
 import { formatARS } from "@/lib/format";
+import { useNewOrderSound } from "@/lib/useNewOrderSound";
 import type { OrderDoc, OrderStatus } from "@/lib/types";
 import { Badge, Button, Card } from "@/components/ui";
 
@@ -75,6 +76,10 @@ export function OrdersBoard({ tenantId }: { tenantId: string }) {
       (err) => setError(err.message),
     );
   }, [tenantId]);
+
+  useNewOrderSound(
+    orders && orders.length ? Math.max(...orders.map((o) => o.createdAt)) : null,
+  );
 
   const sections = useMemo(
     () =>

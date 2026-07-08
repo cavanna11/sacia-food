@@ -24,11 +24,22 @@ export interface TenantBranding {
   font?: string;
 }
 
+/** Configuración operativa del tenant (editable por el dueño desde el panel). */
+export interface TenantConfig {
+  /** Interruptor manual: pausar pedidos ya (independiente del horario). */
+  acceptingOrders: boolean;
+  /** Ventana diaria de apertura, formato "HH:MM" (24 hs). */
+  hours?: { open: string; close: string };
+  /** IANA timezone; default America/Argentina/Buenos_Aires. */
+  timezone?: string;
+}
+
 export interface TenantDoc {
   subdomain: string;
   plan: TenantPlan;
   status: TenantStatus;
   branding: TenantBranding;
+  config?: TenantConfig;
   createdAt: number;
 }
 
@@ -78,6 +89,20 @@ export interface OrderDoc {
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   status: OrderStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * Estado público del pedido (tenants/{id}/tracking/{orderId}).
+ * Lo publica un trigger server-side SIN datos personales: el cliente final
+ * lo sigue desde /pedido/{orderId} sin cuenta (el ID es inadivinable).
+ */
+export interface TrackingDoc {
+  number: number;
+  status: OrderStatus;
+  channel: OrderChannel;
+  total: number;
   createdAt: number;
   updatedAt: number;
 }

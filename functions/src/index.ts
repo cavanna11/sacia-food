@@ -12,6 +12,7 @@
  */
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 initializeApp();
@@ -27,6 +28,49 @@ const TENANT_ID_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const PHONE_RE = /^[\d+\-\s()]{6,20}$/;
 const MAX_ITEMS = 30;
 const MAX_QTY = 20;
+
+// Anti-fraude capa 1 (parcial): límite de pedidos por teléfono.
+const RATE_LIMIT_WINDOW_MS = 30 * 60 * 1000;
+const RATE_LIMIT_MAX_ORDERS = 3;
+
+/**
+ * ¿La tienda acepta pedidos ahora? Réplica server-side de
+ * src/lib/opening-hours.ts (paquetes separados a propósito: el frontend
+ * solo muestra, el backend decide).
+ */
+function isOpenNow(config?: {
+  acceptingOrders?: boolean;
+  hours?: { open: string; close: string };
+  timezone?: string;
+}): boolean {
+  if (config?.acceptingOrders === false) return false;
+  const hours = config?.hours;
+  if (!hours) return true;
+
+  const toMinutes = (hhmm: string): number | null => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+    if (!m) return null;
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    return h > 23 || min > 59 ? null : h * 60 + min;
+  };
+  const open = toMinutes(hours.open);
+  const close = toMinutes(hours.close);
+  if (open === null || close === null || open === close) return true;
+
+  const current = toMinutes(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: config?.timezone ?? "America/Argentina/Buenos_Aires",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date()),
+  ) ?? 0;
+
+  return open < close
+    ? current >= open && current < close
+    : current >= open || current < close; // ventana que cruza medianoche
+}
 
 interface CreateOrderInput {
   tenantId?: string;
@@ -96,6 +140,12 @@ export const createOrder = onCall(async (request) => {
   if (!tenant || tenant.status !== "active") {
     throw new HttpsError("not-found", "El comercio no está disponible.");
   }
+  if (!isOpenNow(tenant.config)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "La tienda está cerrada en este momento.",
+    );
+  }
 
   // Consolidar cantidades por producto (por si mandan repetidos).
   const qtyByProduct = new Map<string, number>();
@@ -132,12 +182,26 @@ export const createOrder = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "El pedido está vacío.");
   }
 
-  // ── Creación atómica: número secuencial + documento del pedido ────────
+  // ── Creación atómica: rate limit + número secuencial + pedido ─────────
   const counterRef = db.doc(`tenants/${tenantId}/counters/orders`);
+  const phoneKey = phone.replace(/\D/g, ""); // solo dígitos como clave
+  const rateRef = db.doc(`tenants/${tenantId}/ratelimits/${phoneKey}`);
   const orderRef = db.collection(`tenants/${tenantId}/orders`).doc();
 
   const number = await db.runTransaction(async (tx) => {
-    const counter = await tx.get(counterRef);
+    const [counter, rate] = await Promise.all([tx.get(counterRef), tx.get(rateRef)]);
+
+    // Anti-fraude capa 1 (parcial): máx N pedidos por teléfono por ventana.
+    const cutoff = Date.now() - RATE_LIMIT_WINDOW_MS;
+    const recent = ((rate.data()?.timestamps as number[]) ?? []).filter((t) => t > cutoff);
+    if (recent.length >= RATE_LIMIT_MAX_ORDERS) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Hiciste varios pedidos seguidos. Esperá unos minutos e intentá de nuevo.",
+      );
+    }
+    tx.set(rateRef, { timestamps: [...recent, Date.now()] });
+
     const next = ((counter.data()?.value as number) ?? 0) + 1;
     tx.set(counterRef, { value: next }, { merge: true });
 
@@ -161,6 +225,36 @@ export const createOrder = onCall(async (request) => {
 
   return { orderId: orderRef.id, number, total, status: "por_confirmar" };
 });
+
+/**
+ * Espejo público del pedido para el tracking del cliente final.
+ * Cada cambio en tenants/{t}/orders/{id} se replica a
+ * tenants/{t}/tracking/{id} SIN datos personales (ni nombre, ni teléfono,
+ * ni dirección). El cliente lo sigue desde /pedido/{id}: el ID del
+ * documento es inadivinable y funciona como token de acceso.
+ */
+export const syncTracking = onDocumentWritten(
+  "tenants/{tenantId}/orders/{orderId}",
+  async (event) => {
+    const { tenantId, orderId } = event.params;
+    const trackingRef = db.doc(`tenants/${tenantId}/tracking/${orderId}`);
+
+    const after = event.data?.after;
+    if (!after?.exists) {
+      await trackingRef.delete();
+      return;
+    }
+    const order = after.data()!;
+    await trackingRef.set({
+      number: order.number,
+      status: order.status,
+      channel: order.channel,
+      total: order.total,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    });
+  },
+);
 
 /**
  * Ping de salud con validación de tenant: prueba del patrón

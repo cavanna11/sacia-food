@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { clientFunctions } from "@/lib/firebase/client";
+import { clientDb, clientFunctions } from "@/lib/firebase/client";
 import { formatARS } from "@/lib/format";
-import type { CreateOrderInput, OrderChannel } from "@/lib/types";
+import { getOpenState, type OpenState } from "@/lib/opening-hours";
+import type { CreateOrderInput, OrderChannel, TenantDoc } from "@/lib/types";
 import { Button, Card, CardTitle, Input } from "@/components/ui";
 import { useCart } from "./CartProvider";
 
@@ -22,6 +24,16 @@ export function Cart({ tenantId }: { tenantId: string }) {
   const cart = useCart();
   const [step, setStep] = useState<Step>("closed");
   const [result, setResult] = useState<CreateOrderResult | null>(null);
+  const [openState, setOpenState] = useState<OpenState>({ open: true });
+
+  // Estado abierto/cerrado en vivo: si el local pausa pedidos con el
+  // carrito armado, el checkout se bloquea al instante.
+  useEffect(() => {
+    return onSnapshot(doc(clientDb, `tenants/${tenantId}`), (snap) => {
+      const data = snap.data() as TenantDoc | undefined;
+      setOpenState(getOpenState(data?.config));
+    });
+  }, [tenantId]);
 
   if (step === "done" && result) {
     return (
@@ -35,8 +47,15 @@ export function Cart({ tenantId }: { tenantId: string }) {
             Total: <strong>{formatARS(result.total)}</strong> — pagás en efectivo
             al {"recibirlo"}. El local va a confirmar tu pedido en breve.
           </p>
-          <Button className="mt-6 w-full" onClick={() => setStep("closed")}>
-            Listo
+          <a href={`/pedido/${result.orderId}`}>
+            <Button className="mt-6 w-full">Seguir mi pedido</Button>
+          </a>
+          <Button
+            variant="ghost"
+            className="mt-2 w-full"
+            onClick={() => setStep("closed")}
+          >
+            Volver al menú
           </Button>
         </Card>
       </Overlay>
@@ -56,6 +75,18 @@ export function Cart({ tenantId }: { tenantId: string }) {
           }}
         />
       </Overlay>
+    );
+  }
+
+  if (!openState.open) {
+    return (
+      <div className="fixed inset-x-0 bottom-0 z-40 p-4">
+        <div className="mx-auto max-w-5xl rounded-control bg-strong px-4 py-3.5 text-center text-sm font-semibold text-bg shadow-lg">
+          {openState.reason === "paused"
+            ? "La tienda está pausada por unos minutos — probá de nuevo en un rato."
+            : `Cerrado por ahora${openState.hoursLabel ? ` · horario: ${openState.hoursLabel}` : ""}.`}
+        </div>
+      </div>
     );
   }
 
