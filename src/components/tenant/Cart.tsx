@@ -6,7 +6,12 @@ import { httpsCallable } from "firebase/functions";
 import { clientDb, clientFunctions } from "@/lib/firebase/client";
 import { formatARS } from "@/lib/format";
 import { getOpenState, type OpenState } from "@/lib/opening-hours";
-import type { CreateOrderInput, OrderChannel, TenantDoc } from "@/lib/types";
+import type {
+  CreateOrderInput,
+  DeliveryZone,
+  OrderChannel,
+  TenantDoc,
+} from "@/lib/types";
 import { Button, Card, CardTitle, Input } from "@/components/ui";
 import { useCart } from "./CartProvider";
 
@@ -25,13 +30,15 @@ export function Cart({ tenantId }: { tenantId: string }) {
   const [step, setStep] = useState<Step>("closed");
   const [result, setResult] = useState<CreateOrderResult | null>(null);
   const [openState, setOpenState] = useState<OpenState>({ open: true });
+  const [zones, setZones] = useState<DeliveryZone[]>([]);
 
-  // Estado abierto/cerrado en vivo: si el local pausa pedidos con el
-  // carrito armado, el checkout se bloquea al instante.
+  // Estado abierto/cerrado y zonas en vivo: si el local pausa pedidos con
+  // el carrito armado, el checkout se bloquea al instante.
   useEffect(() => {
     return onSnapshot(doc(clientDb, `tenants/${tenantId}`), (snap) => {
       const data = snap.data() as TenantDoc | undefined;
       setOpenState(getOpenState(data?.config));
+      setZones(data?.config?.deliveryZones ?? []);
     });
   }, [tenantId]);
 
@@ -67,6 +74,7 @@ export function Cart({ tenantId }: { tenantId: string }) {
       <Overlay>
         <CheckoutForm
           tenantId={tenantId}
+          zones={zones}
           onClose={() => setStep("closed")}
           onDone={(r) => {
             cart.clear();
@@ -108,17 +116,24 @@ export function Cart({ tenantId }: { tenantId: string }) {
 
 function CheckoutForm({
   tenantId,
+  zones,
   onClose,
   onDone,
 }: {
   tenantId: string;
+  zones: DeliveryZone[];
   onClose: () => void;
   onDone: (r: CreateOrderResult) => void;
 }) {
   const cart = useCart();
   const [channel, setChannel] = useState<OrderChannel>("takeaway");
+  const [zoneId, setZoneId] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const zone = zones.find((z) => z.id === zoneId);
+  const deliveryFee = channel === "delivery" && zone ? zone.fee : 0;
+  const totalToPay = cart.total + deliveryFee;
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -132,6 +147,7 @@ function CheckoutForm({
       },
       channel,
       ...(channel === "delivery" ? { address: String(form.get("address")) } : {}),
+      ...(channel === "delivery" && zoneId ? { zoneId } : {}),
       ...(String(form.get("notes")).trim()
         ? { notes: String(form.get("notes")).trim() }
         : {}),
@@ -178,9 +194,14 @@ function CheckoutForm({
           </li>
         ))}
       </ul>
-      <p className="mt-3 border-t border-border-soft pt-3 text-right font-bold">
-        Total: {formatARS(cart.total)}
-      </p>
+      <div className="mt-3 border-t border-border-soft pt-3 text-right">
+        {deliveryFee > 0 && (
+          <p className="text-sm text-muted">
+            Envío ({zone!.name}): {formatARS(deliveryFee)}
+          </p>
+        )}
+        <p className="font-bold">Total: {formatARS(totalToPay)}</p>
+      </div>
 
       <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-2">
@@ -198,12 +219,37 @@ function CheckoutForm({
         <Input label="Tu nombre" name="name" required minLength={2} />
         <Input label="Teléfono" name="phone" type="tel" required placeholder="11 5555-5555" />
         {channel === "delivery" && (
-          <Input label="Dirección de entrega" name="address" required minLength={5} />
+          <>
+            {zones.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="zone-select" className="text-sm font-medium text-strong">
+                  Zona de entrega
+                </label>
+                <select
+                  id="zone-select"
+                  required
+                  value={zoneId}
+                  onChange={(e) => setZoneId(e.target.value)}
+                  className="rounded-control border border-border-soft bg-card px-3.5 py-2.5 text-sm text-strong focus:border-primary focus:outline-none"
+                >
+                  <option value="" disabled>
+                    Elegí tu zona…
+                  </option>
+                  {zones.map((z) => (
+                    <option key={z.id} value={z.id}>
+                      {z.name} — {z.fee === 0 ? "envío gratis" : formatARS(z.fee)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <Input label="Dirección de entrega" name="address" required minLength={5} />
+          </>
         )}
         <Input label="Aclaraciones (opcional)" name="notes" placeholder="Ej: sin cebolla" />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button type="submit" disabled={busy || cart.count === 0}>
-          {busy ? "Enviando…" : `Confirmar pedido · efectivo · ${formatARS(cart.total)}`}
+          {busy ? "Enviando…" : `Confirmar pedido · efectivo · ${formatARS(totalToPay)}`}
         </Button>
       </form>
     </Card>

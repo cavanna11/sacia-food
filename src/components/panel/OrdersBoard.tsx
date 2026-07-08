@@ -174,7 +174,12 @@ function OrderCard({
       <p className="mt-1 text-sm">
         {o.customer.name} · <span className="text-muted">{o.customer.phone}</span>
       </p>
-      {o.address && <p className="text-sm text-muted">📍 {o.address}</p>}
+      {o.address && (
+        <p className="text-sm text-muted">
+          📍 {o.address}
+          {o.zoneName && ` · ${o.zoneName}`}
+        </p>
+      )}
       {o.notes && <p className="text-sm italic text-muted">“{o.notes}”</p>}
 
       <ul className="mt-2 border-t border-border-soft pt-2 text-sm">
@@ -186,6 +191,12 @@ function OrderCard({
             <span className="text-muted">{formatARS(item.subtotal)}</span>
           </li>
         ))}
+        {(o.deliveryFee ?? 0) > 0 && (
+          <li className="flex justify-between gap-2">
+            <span>Envío</span>
+            <span className="text-muted">{formatARS(o.deliveryFee!)}</span>
+          </li>
+        )}
       </ul>
 
       <div className="mt-2 flex items-center justify-between border-t border-border-soft pt-2">

@@ -75,7 +75,13 @@ async function main() {
         plan: "gestion",
         status: "active",
         branding: t.branding,
-        config: { acceptingOrders: true },
+        config: {
+          acceptingOrders: true,
+          deliveryZones: [
+            { id: "centro", name: "Centro", fee: 1500 },
+            { id: "norte", name: "Zona Norte", fee: 2500 },
+          ],
+        },
         createdAt: Date.now(),
       },
       { merge: true },

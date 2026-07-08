@@ -28,4 +28,13 @@ if (mode === "paused") {
   for (let i = 1; i <= 4; i++) {
     console.log(`pedido ${i}:`, await call(order("11 7777-3333")));
   }
+} else if (mode === "zones") {
+  const base = order("11 6666-2222");
+  const delivery = { ...base, channel: "delivery", address: "Calle Falsa 123" };
+  console.log("delivery sin zona:", await call(delivery));
+  console.log(
+    "delivery zona centro ($1500 + $2500 = $4000):",
+    await call({ ...delivery, zoneId: "centro" }),
+  );
+  console.log("delivery zona inventada:", await call({ ...delivery, zoneId: "hackeo" }));
 }

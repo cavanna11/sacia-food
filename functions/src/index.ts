@@ -78,8 +78,15 @@ interface CreateOrderInput {
   customer?: { name?: string; phone?: string };
   channel?: string;
   address?: string;
+  zoneId?: string;
   notes?: string;
   paymentMethod?: string;
+}
+
+interface DeliveryZone {
+  id: string;
+  name: string;
+  fee: number;
 }
 
 /**
@@ -147,6 +154,20 @@ export const createOrder = onCall(async (request) => {
     );
   }
 
+  // Zona de reparto: si el comercio configuró zonas, el delivery exige una
+  // y el costo de envío sale de la config del servidor, no del cliente.
+  let deliveryFee = 0;
+  let zoneName: string | undefined;
+  const zones = (tenant.config?.deliveryZones ?? []) as DeliveryZone[];
+  if (channel === "delivery" && zones.length > 0) {
+    const zone = zones.find((z) => z.id === data.zoneId);
+    if (!zone) {
+      throw new HttpsError("invalid-argument", "Elegí tu zona de entrega.");
+    }
+    deliveryFee = typeof zone.fee === "number" && zone.fee >= 0 ? zone.fee : 0;
+    zoneName = zone.name;
+  }
+
   // Consolidar cantidades por producto (por si mandan repetidos).
   const qtyByProduct = new Map<string, number>();
   for (const item of rawItems) {
@@ -177,10 +198,11 @@ export const createOrder = onCall(async (request) => {
     };
   });
 
-  const total = items.reduce((sum, item) => sum + item.subtotal, 0);
-  if (total <= 0) {
+  const itemsTotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+  if (itemsTotal <= 0) {
     throw new HttpsError("invalid-argument", "El pedido está vacío.");
   }
+  const total = itemsTotal + deliveryFee;
 
   // ── Creación atómica: rate limit + número secuencial + pedido ─────────
   const counterRef = db.doc(`tenants/${tenantId}/counters/orders`);
@@ -210,6 +232,7 @@ export const createOrder = onCall(async (request) => {
       number: next,
       items,
       total,
+      ...(zoneName ? { deliveryFee, zoneName } : {}),
       customer: { name, phone },
       channel,
       ...(channel === "delivery" ? { address } : {}),

@@ -24,6 +24,14 @@ export interface TenantBranding {
   font?: string;
 }
 
+/** Zona de reparto con su costo de envío (sin geocerca todavía). */
+export interface DeliveryZone {
+  id: string;
+  name: string;
+  /** Costo de envío en ARS, entero (0 = envío gratis en la zona). */
+  fee: number;
+}
+
 /** Configuración operativa del tenant (editable por el dueño desde el panel). */
 export interface TenantConfig {
   /** Interruptor manual: pausar pedidos ya (independiente del horario). */
@@ -32,6 +40,8 @@ export interface TenantConfig {
   hours?: { open: string; close: string };
   /** IANA timezone; default America/Argentina/Buenos_Aires. */
   timezone?: string;
+  /** Zonas de reparto. Si hay al menos una, el delivery exige elegir zona. */
+  deliveryZones?: DeliveryZone[];
 }
 
 export interface TenantDoc {
@@ -81,7 +91,12 @@ export interface OrderDoc {
   /** Número secuencial por tenant, para cantar en cocina ("¡el 42!"). */
   number: number;
   items: OrderItem[];
+  /** Total final: items + envío. Siempre calculado server-side. */
   total: number;
+  /** Costo de envío aplicado (solo delivery con zonas configuradas). */
+  deliveryFee?: number;
+  /** Nombre de la zona elegida (congelado al momento del pedido). */
+  zoneName?: string;
   customer: { name: string; phone: string };
   channel: OrderChannel;
   address?: string;
@@ -114,6 +129,8 @@ export interface CreateOrderInput {
   customer: { name: string; phone: string };
   channel: OrderChannel;
   address?: string;
+  /** Requerido si el tenant tiene zonas configuradas y el canal es delivery. */
+  zoneId?: string;
   notes?: string;
   paymentMethod: PaymentMethod;
 }
