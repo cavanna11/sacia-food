@@ -1,36 +1,170 @@
-import { Card, CardDescription, CardTitle } from "@/components/ui";
+import { SavingsCalculator } from "@/components/landing/SavingsCalculator";
+import { Badge, Button, Card, CardDescription, CardTitle } from "@/components/ui";
 
 /**
- * Sitio raíz (dominio sin subdominio). En Fase 2 acá vive la landing
- * comercial con planes, demo y alta self-service. Por ahora, placeholder
- * con accesos a los tenants semilla para desarrollo.
+ * Landing comercial (dominio raíz). Versión 1 de la Fase 2: hero,
+ * calculadora de ahorro, planes y demo. El motion con GSAP y el alta
+ * self-service llegan en las próximas entregas.
  */
-export default function Home() {
-  const demos = [
-    { id: "resto-a", label: "Resto A (demo)" },
-    { id: "resto-b", label: "Resto B (demo)" },
-  ];
 
+const PLANS = [
+  {
+    name: "Presencia",
+    price: "Desde $ 18.000/mes",
+    tagline: "Tu menú digital profesional, hoy.",
+    features: [
+      "Tienda con tu marca (logo, colores, fotos)",
+      "Catálogo con categorías y fotos",
+      "Pedido directo por WhatsApp",
+      "Subdominio propio + PWA instalable",
+    ],
+    featured: false,
+  },
+  {
+    name: "Gestión",
+    price: "Desde $ 45.000/mes",
+    tagline: "Dejá de perder plata en comisiones.",
+    features: [
+      "Todo lo de Presencia",
+      "Pedidos online en tiempo real + vista cocina",
+      "Todos los medios de pago de Argentina",
+      "Delivery por zonas, retiro y salón",
+      "Estadísticas en vivo y anti-pedidos falsos",
+    ],
+    featured: true,
+  },
+  {
+    name: "Pro",
+    price: "Desde $ 90.000/mes",
+    tagline: "Operá como una cadena moderna.",
+    features: [
+      "Todo lo de Gestión",
+      "Tracking GPS del delivery en vivo",
+      "Fidelización con puntos y cupones",
+      "Analítica avanzada y multi-sucursal",
+      "Sugerencias con IA en el checkout",
+    ],
+    featured: false,
+  },
+];
+
+const STEPS = [
+  {
+    title: "Creá tu tienda",
+    text: "Logo, colores y menú en minutos. Queda en tu propio subdominio, con tu marca.",
+  },
+  {
+    title: "Recibí pedidos",
+    text: "Tus clientes piden desde el celu sin apps ni cuentas. Vos los ves llegar en vivo.",
+  },
+  {
+    title: "Cobrá sin comisiones",
+    text: "MercadoPago, transferencia o efectivo. La plata va directo a tu cuenta.",
+  },
+];
+
+export default function Home() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-8 p-8">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight">
-          Plataforma de pedidos
+    <main className="flex-1">
+      {/* Hero */}
+      <section className="mx-auto max-w-5xl px-4 pb-16 pt-20 text-center">
+        <Badge tone="primary">Sin comisión por pedido</Badge>
+        <h1 className="mx-auto mt-4 max-w-3xl text-4xl font-black leading-tight tracking-tight sm:text-6xl">
+          Tu tienda de pedidos online, <span className="text-primary">con tu marca</span>
         </h1>
-        <p className="mt-2 text-muted">
-          Fase 0 — fundaciones multi-tenant. La landing comercial llega en Fase 2.
+        <p className="mx-auto mt-5 max-w-xl text-lg text-muted">
+          Las apps de delivery se llevan hasta el 30% de cada venta. Con tu
+          propia tienda pagás un abono fijo: tus clientes, tus datos y tu
+          plata quedan con vos.
         </p>
-      </div>
-      <div className="grid w-full max-w-lg gap-4 sm:grid-cols-2">
-        {demos.map((d) => (
-          <a key={d.id} href={`http://${d.id}.localhost:3000`}>
-            <Card className="transition-colors hover:border-primary">
-              <CardTitle>{d.label}</CardTitle>
-              <CardDescription>{d.id}.localhost:3000</CardDescription>
-            </Card>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <a href="#planes">
+            <Button className="!px-6 !py-3">Ver planes</Button>
           </a>
-        ))}
-      </div>
+          <a href="http://resto-a.localhost:3000" target="_blank">
+            <Button variant="secondary" className="!px-6 !py-3">
+              Probar la demo en vivo
+            </Button>
+          </a>
+        </div>
+      </section>
+
+      {/* Cómo funciona */}
+      <section className="border-y border-border-soft bg-card py-16">
+        <div className="mx-auto max-w-5xl px-4">
+          <h2 className="text-center text-3xl font-bold tracking-tight">
+            Andando en 3 pasos
+          </h2>
+          <div className="mt-10 grid gap-6 sm:grid-cols-3">
+            {STEPS.map((step, i) => (
+              <div key={step.title} className="text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-xl font-black text-on-primary">
+                  {i + 1}
+                </div>
+                <h3 className="mt-4 text-lg font-semibold">{step.title}</h3>
+                <p className="mt-2 text-sm text-muted">{step.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Calculadora */}
+      <section className="mx-auto max-w-5xl px-4 py-16">
+        <SavingsCalculator />
+      </section>
+
+      {/* Planes */}
+      <section id="planes" className="border-t border-border-soft bg-card py-16">
+        <div className="mx-auto max-w-5xl px-4">
+          <h2 className="text-center text-3xl font-bold tracking-tight">Planes</h2>
+          <p className="mt-2 text-center text-muted">
+            Arrancá chico y subí cuando crezcas. Sin permanencia.
+          </p>
+          <div className="mt-10 grid gap-6 lg:grid-cols-3">
+            {PLANS.map((plan) => (
+              <Card
+                key={plan.name}
+                className={`flex flex-col ${plan.featured ? "border-2 border-primary" : ""}`}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl">{plan.name}</CardTitle>
+                  {plan.featured && <Badge tone="primary">Más elegido</Badge>}
+                </div>
+                <p className="mt-1 text-2xl font-black">{plan.price}</p>
+                <CardDescription>{plan.tagline}</CardDescription>
+                <ul className="mt-4 flex flex-1 flex-col gap-2 text-sm">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex gap-2">
+                      <span className="text-primary">✓</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  variant={plan.featured ? "primary" : "secondary"}
+                  className="mt-6 w-full"
+                >
+                  Quiero este plan
+                </Button>
+              </Card>
+            ))}
+          </div>
+          <p className="mt-6 text-center text-xs text-muted">
+            Precios de referencia. El alta online self-service está en camino —
+            mientras tanto, escribinos y te dejamos la tienda andando en 24 hs.
+          </p>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-10 text-center text-sm text-muted">
+        <p>Hecho en la Costa Atlántica 🌊 · Tu comercio, tu marca, tus datos.</p>
+        <p className="mt-2 text-xs">
+          Demos: <a className="underline" href="http://resto-a.localhost:3000">Resto A</a> ·{" "}
+          <a className="underline" href="http://resto-b.localhost:3000">Resto B</a>
+        </p>
+      </footer>
     </main>
   );
 }
