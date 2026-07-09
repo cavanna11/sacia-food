@@ -1,3 +1,4 @@
+import { LandingEffects } from "@/components/landing/LandingEffects";
 import { SavingsCalculator } from "@/components/landing/SavingsCalculator";
 import { Badge, Button, Card, CardDescription, CardTitle } from "@/components/ui";
 
@@ -68,19 +69,25 @@ const STEPS = [
 
 export default function Home() {
   return (
-    <main className="flex-1">
+    <main className="flex-1 overflow-x-clip">
+      <LandingEffects />
       {/* Hero */}
       <section className="mx-auto max-w-5xl px-4 pb-16 pt-20 text-center">
-        <Badge tone="primary">Sin comisión por pedido</Badge>
-        <h1 className="mx-auto mt-4 max-w-3xl text-4xl font-black leading-tight tracking-tight sm:text-6xl">
+        <div data-hero>
+          <Badge tone="primary">Sin comisión por pedido</Badge>
+        </div>
+        <h1
+          data-hero
+          className="mx-auto mt-4 max-w-3xl text-4xl font-black leading-tight tracking-tight sm:text-6xl"
+        >
           Tu tienda de pedidos online, <span className="text-primary">con tu marca</span>
         </h1>
-        <p className="mx-auto mt-5 max-w-xl text-lg text-muted">
+        <p data-hero className="mx-auto mt-5 max-w-xl text-lg text-muted">
           Las apps de delivery se llevan hasta el 30% de cada venta. Con tu
           propia tienda pagás un abono fijo: tus clientes, tus datos y tu
           plata quedan con vos.
         </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <div data-hero className="mt-8 flex flex-wrap justify-center gap-3">
           <a href="#planes">
             <Button className="!px-6 !py-3">Ver planes</Button>
           </a>
@@ -95,10 +102,10 @@ export default function Home() {
       {/* Cómo funciona */}
       <section className="border-y border-border-soft bg-card py-16">
         <div className="mx-auto max-w-5xl px-4">
-          <h2 className="text-center text-3xl font-bold tracking-tight">
+          <h2 data-reveal className="text-center text-3xl font-bold tracking-tight">
             Andando en 3 pasos
           </h2>
-          <div className="mt-10 grid gap-6 sm:grid-cols-3">
+          <div data-reveal-group className="mt-10 grid gap-6 sm:grid-cols-3">
             {STEPS.map((step, i) => (
               <div key={step.title} className="text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-xl font-black text-on-primary">
@@ -114,17 +121,19 @@ export default function Home() {
 
       {/* Calculadora */}
       <section className="mx-auto max-w-5xl px-4 py-16">
-        <SavingsCalculator />
+        <div data-reveal>
+          <SavingsCalculator />
+        </div>
       </section>
 
       {/* Planes */}
       <section id="planes" className="border-t border-border-soft bg-card py-16">
         <div className="mx-auto max-w-5xl px-4">
-          <h2 className="text-center text-3xl font-bold tracking-tight">Planes</h2>
-          <p className="mt-2 text-center text-muted">
+          <h2 data-reveal className="text-center text-3xl font-bold tracking-tight">Planes</h2>
+          <p data-reveal className="mt-2 text-center text-muted">
             Arrancá chico y subí cuando crezcas. Sin permanencia.
           </p>
-          <div className="mt-10 grid gap-6 lg:grid-cols-3">
+          <div data-reveal-group className="mt-10 grid gap-6 lg:grid-cols-3">
             {PLANS.map((plan) => (
               <Card
                 key={plan.name}
