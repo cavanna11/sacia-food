@@ -9,6 +9,7 @@ import { Badge, Button, Card, CardDescription, CardTitle } from "@/components/ui
 
 const PLANS = [
   {
+    id: "presencia",
     name: "Presencia",
     price: "Desde $ 18.000/mes",
     tagline: "Tu menú digital profesional, hoy.",
@@ -21,6 +22,7 @@ const PLANS = [
     featured: false,
   },
   {
+    id: "gestion",
     name: "Gestión",
     price: "Desde $ 45.000/mes",
     tagline: "Dejá de perder plata en comisiones.",
@@ -34,6 +36,7 @@ const PLANS = [
     featured: true,
   },
   {
+    id: "pro",
     name: "Pro",
     price: "Desde $ 90.000/mes",
     tagline: "Operá como una cadena moderna.",
@@ -141,18 +144,20 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-                <Button
-                  variant={plan.featured ? "primary" : "secondary"}
-                  className="mt-6 w-full"
-                >
-                  Quiero este plan
-                </Button>
+                <a href={`/alta?plan=${plan.id}`} className="mt-6">
+                  <Button
+                    variant={plan.featured ? "primary" : "secondary"}
+                    className="w-full"
+                  >
+                    Quiero este plan
+                  </Button>
+                </a>
               </Card>
             ))}
           </div>
           <p className="mt-6 text-center text-xs text-muted">
-            Precios de referencia. El alta online self-service está en camino —
-            mientras tanto, escribinos y te dejamos la tienda andando en 24 hs.
+            Precios de referencia. Arrancás en modo prueba sin tarjeta y
+            activás el plan cuando quieras.
           </p>
         </div>
       </section>

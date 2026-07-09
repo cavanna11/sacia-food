@@ -11,12 +11,14 @@
  *  - changePlan       (Fase 2): upgrade/downgrade de suscripción.
  */
 import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 initializeApp();
 const db = getFirestore();
+const auth = getAuth();
 
 /** Claims tipados que estampa el sistema al crear usuarios de un tenant. */
 interface TenantClaims {
@@ -258,6 +260,110 @@ export const createOrder = onCall(async (request) => {
   });
 
   return { orderId: orderRef.id, number, total, status: "por_confirmar" };
+});
+
+const RESERVED_SUBDOMAINS = new Set(["www", "app", "api", "admin", "panel"]);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PLANS = new Set(["presencia", "gestion", "pro"]);
+
+interface ProvisionInput {
+  subdomain?: string;
+  businessName?: string;
+  email?: string;
+  password?: string;
+  plan?: string;
+}
+
+/**
+ * Alta self-service: crea el tenant y su usuario dueño en un solo paso.
+ *
+ * Idempotencia: el doc del tenant se crea con `.create()` (falla si el
+ * subdominio ya existe) y el email no puede estar repetido — reintentar
+ * el mismo alta nunca genera dos tenants. El cobro del primer mes
+ * (MercadoPago) se enchufa acá cuando estén las credenciales: hasta
+ * entonces el tenant nace en estado "trial".
+ */
+export const provisionTenant = onCall(async (request) => {
+  const data = (request.data ?? {}) as ProvisionInput;
+
+  const subdomain = data.subdomain?.trim().toLowerCase() ?? "";
+  if (!TENANT_ID_RE.test(subdomain) || RESERVED_SUBDOMAINS.has(subdomain)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "El subdominio solo puede tener minúsculas, números y guiones.",
+    );
+  }
+
+  const businessName = data.businessName?.trim() ?? "";
+  if (businessName.length < 2 || businessName.length > 60) {
+    throw new HttpsError("invalid-argument", "Decinos el nombre de tu comercio.");
+  }
+
+  const email = data.email?.trim().toLowerCase() ?? "";
+  if (!EMAIL_RE.test(email)) {
+    throw new HttpsError("invalid-argument", "El email no parece válido.");
+  }
+
+  const password = data.password ?? "";
+  if (password.length < 8) {
+    throw new HttpsError(
+      "invalid-argument",
+      "La contraseña necesita al menos 8 caracteres.",
+    );
+  }
+
+  const plan = data.plan ?? "gestion";
+  if (!PLANS.has(plan)) {
+    throw new HttpsError("invalid-argument", "Plan inválido.");
+  }
+
+  // El email no puede estar en uso (un dueño = una cuenta).
+  try {
+    await auth.getUserByEmail(email);
+    throw new HttpsError(
+      "already-exists",
+      "Ya existe una cuenta con ese email. Ingresá desde el panel de tu tienda.",
+    );
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    // user-not-found: es lo que queremos.
+  }
+
+  // Reserva atómica del subdominio: create() falla si ya existe.
+  const tenantRef = db.doc(`tenants/${subdomain}`);
+  try {
+    await tenantRef.create({
+      subdomain,
+      plan,
+      status: "trial",
+      branding: {
+        name: businessName,
+        colors: { primary: "#f97316", accent: "#0ea5e9", mode: "light" },
+        font: "sans",
+      },
+      config: { acceptingOrders: true },
+      createdAt: Date.now(),
+    });
+  } catch {
+    throw new HttpsError("already-exists", "Ese subdominio ya está tomado. Probá otro.");
+  }
+
+  // Usuario dueño atado a su tenant vía custom claims.
+  try {
+    const user = await auth.createUser({ email, password, emailVerified: false });
+    await auth.setCustomUserClaims(user.uid, { tenantId: subdomain, role: "owner" });
+    await db.doc(`tenants/${subdomain}/members/${user.uid}`).set({
+      email,
+      role: "owner",
+      createdAt: Date.now(),
+    });
+  } catch {
+    // Si el usuario no pudo crearse, no dejamos un tenant huérfano.
+    await tenantRef.delete().catch(() => {});
+    throw new HttpsError("internal", "No pudimos crear tu cuenta. Probá de nuevo.");
+  }
+
+  return { tenantId: subdomain };
 });
 
 /**
