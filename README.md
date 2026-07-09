@@ -139,5 +139,12 @@ firestore.rules             # la cerradura dura del aislamiento
   - ⏭ Entrega 3 (requiere cuentas externas): MercadoPago Checkout Pro
     (OAuth por tenant + webhook `confirmPayment`), OTP por WhatsApp/SMS,
     Cloudflare Turnstile, notificaciones de estado al cliente.
-- **Fase 2**: landing comercial + alta self-service con provisioning.
+- **Fase 2**:
+  - ✅ Landing comercial con calculadora de ahorro interactiva y planes.
+  - ✅ Alta self-service (`/alta`): `provisionTenant` crea tenant + dueño
+    con claims en un paso (idempotente, subdominio único, rollback).
+    El tenant nace "trial" — el cobro del primer mes se enchufa con MP.
+  - ✅ Base PWA por tenant: manifest dinámico + theme-color + ícono.
+  - ⏭ Motion GSAP, demo embebida, pago del alta con MercadoPago,
+    proyecto Firebase real + Vercel con wildcard domain.
 - **Fase 3+**: Plan Presencia, Plan Pro (loyalty, BI, tracking GPS), add-ons.
