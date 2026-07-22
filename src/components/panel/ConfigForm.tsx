@@ -13,6 +13,7 @@ import { clientDb } from "@/lib/firebase/client";
 import { getOpenState } from "@/lib/opening-hours";
 import type { TenantConfig, TenantDoc } from "@/lib/types";
 import { Badge, Button, Card, CardDescription, CardTitle, Input } from "@/components/ui";
+import { BrandEditor } from "./BrandEditor";
 
 /**
  * Configuración operativa del comercio. Escribe solo la clave `config`
@@ -99,7 +100,9 @@ export function ConfigForm({ tenantId }: { tenantId: string }) {
     <>
       <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
 
-      <Card className="mt-6">
+      <BrandEditor tenantId={tenantId} />
+
+      <Card className="mt-4">
         <div className="flex items-center justify-between gap-4">
           <div>
             <CardTitle>Recepción de pedidos</CardTitle>

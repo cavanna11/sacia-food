@@ -39,12 +39,13 @@ service cloud.firestore {
       allow list: if isSuperadmin();
       // Alta de tenants: solo Cloud Functions (provisioning).
       allow create, delete: if false;
-      // El dueño puede editar SOLO su config operativa (horarios, pausa).
-      // Plan, subdominio, branding y estado siguen siendo server-side.
+      // El dueño puede editar su config operativa (horarios, pausa) y su
+      // branding (nombre, colores, modo). Plan, subdominio, estado y
+      // credenciales siguen siendo server-side (Cloud Functions).
       allow update: if belongsTo(tenantId)
         && request.auth.token.role == 'owner'
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['config']);
+             .hasOnly(['config', 'branding']);
 
       match /products/{productId} {
         // El menú es público (el cliente final lo ve sin cuenta).

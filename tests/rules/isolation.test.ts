@@ -225,6 +225,53 @@ describe("config operativa del tenant (solo el dueño, solo esa clave)", () => {
   });
 });
 
+describe("editor de marca (branding: solo el dueño, solo esa clave)", () => {
+  const newBranding = {
+    name: "Nuevo Nombre",
+    colors: { primary: "#e11d48", accent: "#f59e0b", mode: "dark" },
+  };
+
+  it("PERMITE al dueño editar el branding de su tenant", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertSucceeds(
+      updateDoc(doc(dbA, "tenants/resto-a"), { branding: newBranding }),
+    );
+  });
+
+  it("PERMITE al dueño editar branding y config a la vez", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertSucceeds(
+      updateDoc(doc(dbA, "tenants/resto-a"), {
+        branding: newBranding,
+        config: { acceptingOrders: true },
+      }),
+    );
+  });
+
+  it("DENIEGA cambiar el plan aunque venga junto al branding", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(
+      updateDoc(doc(dbA, "tenants/resto-a"), { branding: newBranding, plan: "pro" }),
+    );
+  });
+
+  it("DENIEGA al dueño de A tocar el branding de B", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(
+      updateDoc(doc(dbA, "tenants/resto-b"), { branding: newBranding }),
+    );
+  });
+
+  it("DENIEGA a un rol no-dueño (cocina) editar el branding", async () => {
+    const dbK = env
+      .authenticatedContext("cook", { tenantId: "resto-a", role: "kitchen" })
+      .firestore();
+    await assertFails(
+      updateDoc(doc(dbK, "tenants/resto-a"), { branding: newBranding }),
+    );
+  });
+});
+
 describe("lista negra de teléfonos (staff del tenant)", () => {
   it("PERMITE al staff bloquear y desbloquear en su tenant", async () => {
     const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
