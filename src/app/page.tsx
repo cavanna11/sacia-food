@@ -1,4 +1,5 @@
 import { LandingEffects } from "@/components/landing/LandingEffects";
+import { LiveDemo } from "@/components/landing/LiveDemo";
 import { SavingsCalculator } from "@/components/landing/SavingsCalculator";
 import { Badge, Button, Card, CardDescription, CardTitle } from "@/components/ui";
 
@@ -115,6 +116,37 @@ export default function Home() {
                 <p className="mt-2 text-sm text-muted">{step.text}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Demo en vivo */}
+      <section className="mx-auto max-w-5xl px-4 py-16">
+        <div className="grid items-center gap-10 lg:grid-cols-2">
+          <div data-reveal>
+            <Badge tone="accent">Demo en vivo</Badge>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight">
+              Probala antes de comprar
+            </h2>
+            <p className="mt-3 text-muted">
+              Esta es una tienda real corriendo sobre la plataforma. Agregá
+              productos, abrí el carrito y hacé un pedido de prueba — así lo va
+              a ver tu cliente desde el celular, sin instalar ninguna app.
+            </p>
+            <ul className="mt-5 flex flex-col gap-2 text-sm">
+              <li className="flex gap-2">
+                <span className="text-primary">✓</span> Menú y carrito en tiempo real
+              </li>
+              <li className="flex gap-2">
+                <span className="text-primary">✓</span> Checkout de un toque, sin cuenta
+              </li>
+              <li className="flex gap-2">
+                <span className="text-primary">✓</span> Con la marca del comercio
+              </li>
+            </ul>
+          </div>
+          <div data-reveal>
+            <LiveDemo />
           </div>
         </div>
       </section>
