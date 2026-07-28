@@ -96,6 +96,21 @@ export function ConfigForm({ tenantId }: { tenantId: string }) {
     });
   }
 
+  async function useAppMode() {
+    await save({ ...baseConfig(), orderMode: "app" });
+  }
+
+  async function saveWhatsApp(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const num = String(form.get("whatsapp")).replace(/[^\d]/g, "");
+    if (num.length < 10) {
+      setError("Poné el número con código de país, ej: 5492255...");
+      return;
+    }
+    await save({ ...baseConfig(), orderMode: "whatsapp", whatsapp: num });
+  }
+
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
@@ -124,6 +139,44 @@ export function ConfigForm({ tenantId }: { tenantId: string }) {
             {accepting ? "Pausar pedidos" : "Reanudar pedidos"}
           </Button>
         </div>
+      </Card>
+
+      <Card className="mt-4">
+        <div className="flex items-center gap-2">
+          <CardTitle>Pedidos por WhatsApp</CardTitle>
+          {config?.orderMode === "whatsapp" ? (
+            <Badge tone="primary">Activo</Badge>
+          ) : (
+            <Badge tone="neutral">Desactivado</Badge>
+          )}
+        </div>
+        <CardDescription>
+          Modo Presencia: en vez de entrar a la cola y la cocina, cada pedido
+          abre WhatsApp con el detalle listo para enviarte. Ideal para arrancar
+          sin pagos online. Al activarlo, el carrito de tu tienda pide por acá.
+        </CardDescription>
+
+        {config?.orderMode === "whatsapp" ? (
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <p className="text-sm">
+              Recibiendo en <span className="font-semibold">+{config.whatsapp}</span>
+            </p>
+            <Button variant="secondary" onClick={useAppMode}>
+              Volver a pedidos por la app
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={saveWhatsApp} className="mt-4 flex flex-wrap items-end gap-4">
+            <Input
+              label="Tu WhatsApp (con código de país)"
+              name="whatsapp"
+              type="tel"
+              placeholder="54 9 2255 55-5555"
+              required
+            />
+            <Button type="submit">Activar WhatsApp</Button>
+          </form>
+        )}
       </Card>
 
       <Card className="mt-4">

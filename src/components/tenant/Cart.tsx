@@ -6,10 +6,12 @@ import { httpsCallable } from "firebase/functions";
 import { clientDb, clientFunctions } from "@/lib/firebase/client";
 import { formatARS } from "@/lib/format";
 import { getOpenState, type OpenState } from "@/lib/opening-hours";
+import { buildWhatsAppMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
 import type {
   CreateOrderInput,
   DeliveryZone,
   OrderChannel,
+  OrderMode,
   TenantDoc,
 } from "@/lib/types";
 import { Button, Card, CardTitle, Input } from "@/components/ui";
@@ -24,39 +26,64 @@ interface CreateOrderResult {
   status: string;
 }
 
+/** Resultado del checkout: pedido por app (con tracking) o por WhatsApp. */
+type DoneResult = { kind: "app"; data: CreateOrderResult } | { kind: "whatsapp" };
+
 /** Barra flotante del carrito + checkout en efectivo (retiro o envío). */
 export function Cart({ tenantId }: { tenantId: string }) {
   const cart = useCart();
   const [step, setStep] = useState<Step>("closed");
-  const [result, setResult] = useState<CreateOrderResult | null>(null);
+  const [result, setResult] = useState<DoneResult | null>(null);
   const [openState, setOpenState] = useState<OpenState>({ open: true });
   const [zones, setZones] = useState<DeliveryZone[]>([]);
+  const [orderMode, setOrderMode] = useState<OrderMode>("app");
+  const [whatsapp, setWhatsapp] = useState<string | undefined>(undefined);
+  const [tenantName, setTenantName] = useState<string>("");
 
-  // Estado abierto/cerrado y zonas en vivo: si el local pausa pedidos con
-  // el carrito armado, el checkout se bloquea al instante.
+  // Estado abierto/cerrado, zonas y modo de pedido en vivo: si el local pausa
+  // pedidos con el carrito armado, el checkout se bloquea al instante.
   useEffect(() => {
     return onSnapshot(doc(clientDb, `tenants/${tenantId}`), (snap) => {
       const data = snap.data() as TenantDoc | undefined;
       setOpenState(getOpenState(data?.config));
       setZones(data?.config?.deliveryZones ?? []);
+      setOrderMode(data?.config?.orderMode ?? "app");
+      setWhatsapp(data?.config?.whatsapp);
+      setTenantName(data?.branding?.name ?? "");
     });
   }, [tenantId]);
+
+  // Plan Presencia: si está en modo WhatsApp y hay número, el pedido sale
+  // por WhatsApp en vez de entrar a la cola/cobros.
+  const isWhatsApp = orderMode === "whatsapp" && !!whatsapp;
 
   if (step === "done" && result) {
     return (
       <Overlay>
         <Card className="w-full max-w-md text-center">
-          <p className="text-4xl">✅</p>
-          <CardTitle className="mt-3 text-xl">
-            ¡Pedido #{result.number} enviado!
-          </CardTitle>
-          <p className="mt-2 text-sm text-muted">
-            Total: <strong>{formatARS(result.total)}</strong> — pagás en efectivo
-            al {"recibirlo"}. El local va a confirmar tu pedido en breve.
-          </p>
-          <a href={`/pedido/${result.orderId}`}>
-            <Button className="mt-6 w-full">Seguir mi pedido</Button>
-          </a>
+          <p className="text-4xl">{result.kind === "whatsapp" ? "💬" : "✅"}</p>
+          {result.kind === "app" ? (
+            <>
+              <CardTitle className="mt-3 text-xl">
+                ¡Pedido #{result.data.number} enviado!
+              </CardTitle>
+              <p className="mt-2 text-sm text-muted">
+                Total: <strong>{formatARS(result.data.total)}</strong> — pagás en
+                efectivo al recibirlo. El local va a confirmar tu pedido en breve.
+              </p>
+              <a href={`/pedido/${result.data.orderId}`}>
+                <Button className="mt-6 w-full">Seguir mi pedido</Button>
+              </a>
+            </>
+          ) : (
+            <>
+              <CardTitle className="mt-3 text-xl">Te llevamos a WhatsApp</CardTitle>
+              <p className="mt-2 text-sm text-muted">
+                Abrimos WhatsApp con tu pedido listo para enviar. Si no se abrió,
+                revisá que tengas WhatsApp instalado y volvé a intentar.
+              </p>
+            </>
+          )}
           <Button
             variant="ghost"
             className="mt-2 w-full"
@@ -75,6 +102,8 @@ export function Cart({ tenantId }: { tenantId: string }) {
         <CheckoutForm
           tenantId={tenantId}
           zones={zones}
+          whatsapp={isWhatsApp ? whatsapp : undefined}
+          tenantName={tenantName}
           onClose={() => setStep("closed")}
           onDone={(r) => {
             cart.clear();
@@ -117,13 +146,18 @@ export function Cart({ tenantId }: { tenantId: string }) {
 function CheckoutForm({
   tenantId,
   zones,
+  whatsapp,
+  tenantName,
   onClose,
   onDone,
 }: {
   tenantId: string;
   zones: DeliveryZone[];
+  /** Si viene, el pedido sale por WhatsApp a este número (Plan Presencia). */
+  whatsapp?: string;
+  tenantName: string;
   onClose: () => void;
-  onDone: (r: CreateOrderResult) => void;
+  onDone: (r: DoneResult) => void;
 }) {
   const cart = useCart();
   const [channel, setChannel] = useState<OrderChannel>("takeaway");
@@ -138,19 +172,36 @@ function CheckoutForm({
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
+    const name = String(form.get("name")).trim();
+    const phone = String(form.get("phone")).trim();
+    const address = channel === "delivery" ? String(form.get("address")).trim() : undefined;
+    const notes = String(form.get("notes")).trim() || undefined;
+
+    // Plan Presencia: pedido por WhatsApp, sin backend.
+    if (whatsapp) {
+      const message = buildWhatsAppMessage(tenantName, {
+        items: cart.items,
+        itemsTotal: cart.total,
+        customer: { name, phone },
+        channel,
+        address,
+        zoneName: zone?.name,
+        deliveryFee,
+        notes,
+      });
+      window.open(buildWhatsAppUrl(whatsapp, message), "_blank");
+      onDone({ kind: "whatsapp" });
+      return;
+    }
+
     const input: CreateOrderInput = {
       tenantId,
       items: cart.items.map((i) => ({ productId: i.productId, qty: i.qty })),
-      customer: {
-        name: String(form.get("name")),
-        phone: String(form.get("phone")),
-      },
+      customer: { name, phone },
       channel,
-      ...(channel === "delivery" ? { address: String(form.get("address")) } : {}),
+      ...(address ? { address } : {}),
       ...(channel === "delivery" && zoneId ? { zoneId } : {}),
-      ...(String(form.get("notes")).trim()
-        ? { notes: String(form.get("notes")).trim() }
-        : {}),
+      ...(notes ? { notes } : {}),
       paymentMethod: "cash",
     };
     setBusy(true);
@@ -161,7 +212,7 @@ function CheckoutForm({
         "createOrder",
       );
       const { data } = await call(input);
-      onDone(data);
+      onDone({ kind: "app", data });
     } catch (err) {
       setError(
         err instanceof Error && "message" in err && err.message !== "internal"
@@ -249,7 +300,11 @@ function CheckoutForm({
         <Input label="Aclaraciones (opcional)" name="notes" placeholder="Ej: sin cebolla" />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button type="submit" disabled={busy || cart.count === 0}>
-          {busy ? "Enviando…" : `Confirmar pedido · efectivo · ${formatARS(totalToPay)}`}
+          {busy
+            ? "Enviando…"
+            : whatsapp
+              ? `Pedir por WhatsApp · ${formatARS(totalToPay)}`
+              : `Confirmar pedido · efectivo · ${formatARS(totalToPay)}`}
         </Button>
       </form>
     </Card>

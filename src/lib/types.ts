@@ -32,6 +32,15 @@ export interface DeliveryZone {
   fee: number;
 }
 
+/**
+ * Modo de recepción de pedidos:
+ *  - "app": el pedido entra por Cloud Function (cola, cocina, cobros). Planes
+ *    Gestión/Pro.
+ *  - "whatsapp": el carrito arma un mensaje y abre WhatsApp del comercio, sin
+ *    pago online ni dashboard. Plan Presencia (barrera-cero).
+ */
+export type OrderMode = "app" | "whatsapp";
+
 /** Configuración operativa del tenant (editable por el dueño desde el panel). */
 export interface TenantConfig {
   /** Interruptor manual: pausar pedidos ya (independiente del horario). */
@@ -42,6 +51,10 @@ export interface TenantConfig {
   timezone?: string;
   /** Zonas de reparto. Si hay al menos una, el delivery exige elegir zona. */
   deliveryZones?: DeliveryZone[];
+  /** Cómo entra el pedido. Default "app". */
+  orderMode?: OrderMode;
+  /** Teléfono del comercio para pedidos por WhatsApp (solo dígitos, con país). */
+  whatsapp?: string;
 }
 
 export interface TenantDoc {
