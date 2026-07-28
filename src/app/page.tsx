@@ -1,3 +1,5 @@
+import Image from "next/image";
+import heroDemo from "@/assets/hero-demo.png";
 import { LandingEffects } from "@/components/landing/LandingEffects";
 import { LiveDemo } from "@/components/landing/LiveDemo";
 import { SavingsCalculator } from "@/components/landing/SavingsCalculator";
@@ -73,30 +75,42 @@ export default function Home() {
     <main className="flex-1 overflow-x-clip">
       <LandingEffects />
       {/* Hero */}
-      <section className="mx-auto max-w-5xl px-4 pb-16 pt-20 text-center">
-        <div data-hero>
-          <Badge tone="primary">Sin comisión por pedido</Badge>
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-20 lg:grid-cols-2">
+        <div className="text-center lg:text-left">
+          <div data-hero>
+            <Badge tone="primary">Sin comisión por pedido</Badge>
+          </div>
+          <h1
+            data-hero
+            className="mt-4 text-4xl font-black leading-tight tracking-tight sm:text-6xl"
+          >
+            Tu tienda de pedidos online, <span className="text-primary">con tu marca</span>
+          </h1>
+          <p data-hero className="mx-auto mt-5 max-w-xl text-lg text-muted lg:mx-0">
+            Las apps de delivery se llevan hasta el 30% de cada venta. Con tu
+            propia tienda pagás un abono fijo: tus clientes, tus datos y tu
+            plata quedan con vos.
+          </p>
+          <div data-hero className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
+            <a href="#planes">
+              <Button className="!px-6 !py-3">Ver planes</Button>
+            </a>
+            <a href="http://resto-a.localhost:3000" target="_blank">
+              <Button variant="secondary" className="!px-6 !py-3">
+                Probar la demo en vivo
+              </Button>
+            </a>
+          </div>
         </div>
-        <h1
-          data-hero
-          className="mx-auto mt-4 max-w-3xl text-4xl font-black leading-tight tracking-tight sm:text-6xl"
-        >
-          Tu tienda de pedidos online, <span className="text-primary">con tu marca</span>
-        </h1>
-        <p data-hero className="mx-auto mt-5 max-w-xl text-lg text-muted">
-          Las apps de delivery se llevan hasta el 30% de cada venta. Con tu
-          propia tienda pagás un abono fijo: tus clientes, tus datos y tu
-          plata quedan con vos.
-        </p>
-        <div data-hero className="mt-8 flex flex-wrap justify-center gap-3">
-          <a href="#planes">
-            <Button className="!px-6 !py-3">Ver planes</Button>
-          </a>
-          <a href="http://resto-a.localhost:3000" target="_blank">
-            <Button variant="secondary" className="!px-6 !py-3">
-              Probar la demo en vivo
-            </Button>
-          </a>
+        <div data-hero className="flex justify-center lg:justify-end">
+          <Image
+            src={heroDemo}
+            alt="La tienda de un comercio vista desde el celular del cliente"
+            preload
+            placeholder="blur"
+            sizes="(max-width: 1024px) 80vw, 440px"
+            className="h-auto w-full max-w-[400px] drop-shadow-2xl"
+          />
         </div>
       </section>
 
