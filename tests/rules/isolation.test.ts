@@ -304,6 +304,37 @@ describe("lista negra de teléfonos (staff del tenant)", () => {
   });
 });
 
+describe("superadmin de plataforma", () => {
+  const SUPER = { role: "superadmin" };
+
+  it("PERMITE al superadmin listar todos los comercios", async () => {
+    const db = env.authenticatedContext("admin", SUPER).firestore();
+    await assertSucceeds(getDocs(collection(db, "tenants")));
+  });
+
+  it("DENIEGA a un dueño listar todos los comercios", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(getDocs(collection(dbA, "tenants")));
+  });
+
+  it("PERMITE al superadmin suspender/activar un comercio (solo status)", async () => {
+    const db = env.authenticatedContext("admin", SUPER).firestore();
+    await assertSucceeds(updateDoc(doc(db, "tenants/resto-a"), { status: "suspended" }));
+  });
+
+  it("DENIEGA al superadmin cambiar el plan (solo status)", async () => {
+    const db = env.authenticatedContext("admin", SUPER).firestore();
+    await assertFails(updateDoc(doc(db, "tenants/resto-a"), { plan: "pro" }));
+  });
+
+  it("DENIEGA a un dueño cambiar su propio status", async () => {
+    // El test anterior dejó resto-a en "suspended"; el dueño intenta un
+    // cambio REAL (a "active") para que el diff no sea vacío.
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(updateDoc(doc(dbA, "tenants/resto-a"), { status: "active" }));
+  });
+});
+
 describe("eventos de pago (staff lee, nadie escribe)", () => {
   it("PERMITE al staff ver los pagos de su tenant", async () => {
     const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();

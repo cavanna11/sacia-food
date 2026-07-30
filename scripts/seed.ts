@@ -107,6 +107,13 @@ async function main() {
     console.log(`✔ tenant "${t.id}" listo — panel: http://${t.id}.localhost:3000/panel`);
     console.log(`   login: ${t.owner.email} / ${t.owner.password}`);
   }
+
+  // Superadmin de plataforma (interno, para operar el SaaS).
+  const admin = await ensureUser("admin@saciafood.com", "superadmin123");
+  await auth.setCustomUserClaims(admin.uid, { role: "superadmin" });
+  console.log("✔ superadmin listo — http://localhost:3000/superadmin");
+  console.log("   login: admin@saciafood.com / superadmin123");
+
   console.log("\nSeed completado.");
 }
 
