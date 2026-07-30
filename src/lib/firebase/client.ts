@@ -7,11 +7,15 @@ import { connectAuthEmulator, getAuth } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
 import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
 
+// Fallbacks no-vacíos: si faltan las env vars (ej. build de Vercel sin
+// configurar), `getAuth` NO debe tirar auth/invalid-api-key y romper el build.
+// Con las variables reales seteadas, estos placeholders nunca se usan.
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "missing-api-key",
+  authDomain:
+    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "demo.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "demo-gestion-pedidos",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "demo-app-id",
 };
 
 const app = getApps()[0] ?? initializeApp(firebaseConfig);
