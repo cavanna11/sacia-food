@@ -1,14 +1,17 @@
 import Image from "next/image";
 import heroDemo from "@/assets/hero-demo.png";
+import { Comparison } from "@/components/landing/Comparison";
+import { Faq } from "@/components/landing/Faq";
+import { Features } from "@/components/landing/Features";
 import { LandingEffects } from "@/components/landing/LandingEffects";
 import { LiveDemo } from "@/components/landing/LiveDemo";
 import { SavingsCalculator } from "@/components/landing/SavingsCalculator";
 import { Badge, Button, Card, CardDescription, CardTitle } from "@/components/ui";
 
 /**
- * Landing comercial (dominio raíz). Versión 1 de la Fase 2: hero,
- * calculadora de ahorro, planes y demo. El motion con GSAP y el alta
- * self-service llegan en las próximas entregas.
+ * Sitio comercial (dominio raíz): hero, cómo funciona, funciones, demo en
+ * vivo, comparación vs apps, calculadora de ahorro, planes, FAQ y CTA.
+ * El navbar y el footer los pone el layout de (marketing).
  */
 
 const PLANS = [
@@ -74,8 +77,9 @@ export default function Home() {
   return (
     <main className="flex-1 overflow-x-clip">
       <LandingEffects />
+
       {/* Hero */}
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-20 lg:grid-cols-2">
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-16 lg:grid-cols-2 lg:pt-24">
         <div className="text-center lg:text-left">
           <div data-hero>
             <Badge tone="primary">Sin comisión por pedido</Badge>
@@ -92,15 +96,18 @@ export default function Home() {
             plata quedan con vos.
           </p>
           <div data-hero className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
-            <a href="#planes">
-              <Button className="!px-6 !py-3">Ver planes</Button>
+            <a href="/alta">
+              <Button className="!px-6 !py-3">Crear mi tienda</Button>
             </a>
-            <a href="http://resto-a.localhost:3000" target="_blank">
+            <a href="#demo">
               <Button variant="secondary" className="!px-6 !py-3">
-                Probar la demo en vivo
+                Ver la demo en vivo
               </Button>
             </a>
           </div>
+          <p data-hero className="mt-4 text-sm text-muted">
+            Sin tarjeta para empezar · Listo en minutos
+          </p>
         </div>
         <div data-hero className="flex justify-center lg:justify-end">
           <Image
@@ -115,12 +122,15 @@ export default function Home() {
       </section>
 
       {/* Cómo funciona */}
-      <section className="border-y border-border-soft bg-card py-16">
+      <section
+        id="como-funciona"
+        className="scroll-mt-20 border-y border-border-soft bg-card py-20"
+      >
         <div className="mx-auto max-w-5xl px-4">
-          <h2 data-reveal className="text-center text-3xl font-bold tracking-tight">
+          <h2 data-reveal className="text-center text-3xl font-bold tracking-tight sm:text-4xl">
             Andando en 3 pasos
           </h2>
-          <div data-reveal-group className="mt-10 grid gap-6 sm:grid-cols-3">
+          <div data-reveal-group className="mt-12 grid gap-6 sm:grid-cols-3">
             {STEPS.map((step, i) => (
               <div key={step.title} className="text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-xl font-black text-on-primary">
@@ -134,12 +144,15 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Funciones */}
+      <Features />
+
       {/* Demo en vivo */}
-      <section className="mx-auto max-w-5xl px-4 py-16">
+      <section id="demo" className="mx-auto max-w-5xl scroll-mt-20 px-4 py-20">
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <div data-reveal>
             <Badge tone="accent">Demo en vivo</Badge>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight">
+            <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
               Probala antes de comprar
             </h2>
             <p className="mt-3 text-muted">
@@ -165,25 +178,30 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Comparación vs apps */}
+      <Comparison />
+
       {/* Calculadora */}
-      <section className="mx-auto max-w-5xl px-4 py-16">
+      <section id="ahorro" className="mx-auto max-w-5xl scroll-mt-20 px-4 py-20">
         <div data-reveal>
           <SavingsCalculator />
         </div>
       </section>
 
       {/* Planes */}
-      <section id="planes" className="border-t border-border-soft bg-card py-16">
+      <section id="precios" className="scroll-mt-20 border-t border-border-soft bg-card py-20">
         <div className="mx-auto max-w-5xl px-4">
-          <h2 data-reveal className="text-center text-3xl font-bold tracking-tight">Planes</h2>
+          <h2 data-reveal className="text-center text-3xl font-bold tracking-tight sm:text-4xl">
+            Planes
+          </h2>
           <p data-reveal className="mt-2 text-center text-muted">
             Arrancá chico y subí cuando crezcas. Sin permanencia.
           </p>
-          <div data-reveal-group className="mt-10 grid gap-6 lg:grid-cols-3">
+          <div data-reveal-group className="mt-12 grid gap-6 lg:grid-cols-3">
             {PLANS.map((plan) => (
               <Card
                 key={plan.name}
-                className={`flex flex-col ${plan.featured ? "border-2 border-primary" : ""}`}
+                className={`flex flex-col ${plan.featured ? "border-2 border-primary shadow-md" : ""}`}
               >
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl">{plan.name}</CardTitle>
@@ -217,14 +235,30 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-10 text-center text-sm text-muted">
-        <p>Hecho en la Costa Atlántica 🌊 · Tu comercio, tu marca, tus datos.</p>
-        <p className="mt-2 text-xs">
-          Demos: <a className="underline" href="http://resto-a.localhost:3000">Resto A</a> ·{" "}
-          <a className="underline" href="http://resto-b.localhost:3000">Resto B</a>
-        </p>
-      </footer>
+      {/* Preguntas */}
+      <Faq />
+
+      {/* CTA final */}
+      <section className="px-4 py-20">
+        <div
+          data-reveal
+          className="mx-auto max-w-4xl rounded-card bg-primary px-6 py-14 text-center text-on-primary"
+        >
+          <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+            Publicá tu tienda hoy
+          </h2>
+          <p className="mx-auto mt-3 max-w-lg opacity-90">
+            En minutos tenés tu tienda con tu marca, lista para recibir pedidos
+            sin comisiones. Sin tarjeta para empezar.
+          </p>
+          <a
+            href="/alta"
+            className="mt-8 inline-block rounded-control bg-on-primary px-7 py-3 font-semibold text-primary transition-transform hover:scale-105"
+          >
+            Crear mi tienda
+          </a>
+        </div>
+      </section>
     </main>
   );
 }
