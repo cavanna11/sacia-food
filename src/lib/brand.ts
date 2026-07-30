@@ -5,12 +5,13 @@
  * landing sale de acá, así que cambiar la marca es tocar SOLO este archivo.
  */
 export const BRAND = {
-  name: "iaPedí",
+  // Variantes válidas del nombre: "Sacia Food" | "SACIA Food" | "Sacia-Food".
+  name: "Sacia Food",
   /** Claim corto. */
   tagline: "Tu tienda de pedidos, sin comisiones.",
   /** Dominio. */
-  domain: "iapedi.com",
-  email: "hola@iapedi.com",
+  domain: "saciafood.com",
+  email: "hola@saciafood.com",
   /** Redes (placeholder). */
   instagram: "https://instagram.com/",
   whatsapp: "https://wa.me/",
