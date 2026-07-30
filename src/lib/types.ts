@@ -55,6 +55,8 @@ export interface TenantConfig {
   orderMode?: OrderMode;
   /** Teléfono del comercio para pedidos por WhatsApp (solo dígitos, con país). */
   whatsapp?: string;
+  /** Cobro online con MercadoPago habilitado (simulado hasta conectar la cuenta). */
+  mpEnabled?: boolean;
 }
 
 export interface TenantDoc {
@@ -78,6 +80,7 @@ export interface TenantClaims {
  * (anti-fraude capa 3 — efectivo y clientes nuevos).
  */
 export type OrderStatus =
+  | "pendiente_pago" // MercadoPago: esperando el pago; invisible hasta acreditar
   | "por_confirmar"
   | "recibido"
   | "en_preparacion"
@@ -87,8 +90,17 @@ export type OrderStatus =
   | "rechazado";
 
 export type OrderChannel = "takeaway" | "delivery";
-export type PaymentMethod = "cash"; // mercadopago llega en la entrega 3
+export type PaymentMethod = "cash" | "mercadopago";
 export type PaymentStatus = "pending" | "paid";
+
+/** Evento de pago (tenants/{id}/payments/{paymentId}). Solo lo escribe el server. */
+export interface PaymentDoc {
+  orderId: string;
+  provider: "mercadopago" | "simulado";
+  status: "approved" | "rejected";
+  amount: number;
+  createdAt: number;
+}
 
 export interface OrderItem {
   productId: string;
@@ -146,6 +158,8 @@ export interface CreateOrderInput {
   zoneId?: string;
   notes?: string;
   paymentMethod: PaymentMethod;
+  /** Origen del storefront, para armar el checkout de MercadoPago. */
+  baseUrl?: string;
 }
 
 /** Producto del catálogo (tenants/{id}/products/{productId}). */

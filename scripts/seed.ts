@@ -77,6 +77,8 @@ async function main() {
         branding: t.branding,
         config: {
           acceptingOrders: true,
+          // MercadoPago habilitado en modo simulación (sin credenciales aún).
+          mpEnabled: true,
           deliveryZones: [
             { id: "centro", name: "Centro", fee: 1500 },
             { id: "norte", name: "Zona Norte", fee: 2500 },

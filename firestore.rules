@@ -70,6 +70,13 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      match /payments/{paymentId} {
+        // Eventos de pago: el staff los ve (conciliación); escribe solo el
+        // server (webhook / simulador de MercadoPago).
+        allow get, list: if isStaff(tenantId) || isSuperadmin();
+        allow write: if false;
+      }
+
       match /members/{uid} {
         // Cada miembro del staff puede ver el listado de su propio equipo.
         allow get, list: if belongsTo(tenantId) || isSuperadmin();

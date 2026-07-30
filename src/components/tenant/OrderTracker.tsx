@@ -66,6 +66,19 @@ export function OrderTracker({
     );
   }
 
+  if (tracking.status === "pendiente_pago") {
+    return (
+      <Card className="text-center">
+        <p className="text-4xl">⏳</p>
+        <CardTitle className="mt-2">Esperando tu pago</CardTitle>
+        <p className="mt-2 text-sm text-muted">
+          Total {formatARS(tracking.total)}. Apenas se acredite el pago por
+          MercadoPago, el local recibe tu pedido y esta pantalla se actualiza sola.
+        </p>
+      </Card>
+    );
+  }
+
   const steps = stepsFor(tracking.channel);
   const currentIdx = steps.findIndex((s) => s.status === tracking.status);
 

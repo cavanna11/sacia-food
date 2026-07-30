@@ -14,7 +14,8 @@ import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
+import { createPreference, fetchPayment } from "./mercadopago";
 
 initializeApp();
 const db = getFirestore();
@@ -83,6 +84,8 @@ interface CreateOrderInput {
   zoneId?: string;
   notes?: string;
   paymentMethod?: string;
+  /** Origen del storefront (para back_urls / checkout simulado). */
+  baseUrl?: string;
 }
 
 interface DeliveryZone {
@@ -124,8 +127,9 @@ export const createOrder = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Necesitamos una dirección de entrega.");
   }
 
-  if (data.paymentMethod !== "cash") {
-    throw new HttpsError("invalid-argument", "Medio de pago no disponible todavía.");
+  const paymentMethod = data.paymentMethod === "mercadopago" ? "mercadopago" : "cash";
+  if (data.paymentMethod !== "cash" && data.paymentMethod !== "mercadopago") {
+    throw new HttpsError("invalid-argument", "Medio de pago inválido.");
   }
 
   const rawItems = data.items ?? [];
@@ -153,6 +157,12 @@ export const createOrder = onCall(async (request) => {
     throw new HttpsError(
       "failed-precondition",
       "La tienda está cerrada en este momento.",
+    );
+  }
+  if (paymentMethod === "mercadopago" && tenant.config?.mpEnabled !== true) {
+    throw new HttpsError(
+      "failed-precondition",
+      "El pago online no está disponible en este comercio.",
     );
   }
 
@@ -241,6 +251,10 @@ export const createOrder = onCall(async (request) => {
     tx.set(counterRef, { value: next }, { merge: true });
 
     const now = Date.now();
+    // MercadoPago: el pedido nace "pendiente_pago" (invisible en cola/cocina/
+    // stats) hasta que el webhook confirma la acreditación. Efectivo entra
+    // directo a "por confirmar".
+    const status = paymentMethod === "mercadopago" ? "pendiente_pago" : "por_confirmar";
     tx.set(orderRef, {
       number: next,
       items,
@@ -250,16 +264,167 @@ export const createOrder = onCall(async (request) => {
       channel,
       ...(channel === "delivery" ? { address } : {}),
       ...(data.notes?.trim() ? { notes: data.notes.trim().slice(0, 200) } : {}),
-      paymentMethod: "cash",
+      paymentMethod,
       paymentStatus: "pending",
-      status: "por_confirmar",
+      status,
       createdAt: now,
       updatedAt: now,
     });
     return next;
   });
 
-  return { orderId: orderRef.id, number, total, status: "por_confirmar" };
+  // Efectivo: listo. MercadoPago: crear la preferencia y devolver el checkout.
+  if (paymentMethod === "cash") {
+    return { orderId: orderRef.id, number, total, status: "por_confirmar" };
+  }
+
+  const baseUrl =
+    typeof data.baseUrl === "string" && /^https?:\/\//.test(data.baseUrl)
+      ? data.baseUrl.replace(/\/$/, "").slice(0, 200)
+      : "";
+  try {
+    const mpCreds = (await db.doc(`tenants/${tenantId}/private/mp`).get()).data() as
+      | { accessToken?: string }
+      | undefined;
+    const pref = await createPreference(
+      {
+        tenantId,
+        orderId: orderRef.id,
+        storeName: (tenant.branding?.name as string) ?? tenantId,
+        items: items.map((it) => ({
+          title: it.name,
+          quantity: it.qty,
+          unit_price: it.price,
+        })),
+        baseUrl,
+      },
+      mpCreds,
+    );
+    return {
+      orderId: orderRef.id,
+      number,
+      total,
+      status: "pendiente_pago",
+      checkoutUrl: pref.checkoutUrl,
+      simulated: pref.simulated,
+    };
+  } catch {
+    // Si no se pudo crear el cobro, el pedido no debe quedar colgado.
+    await orderRef.delete().catch(() => {});
+    throw new HttpsError("internal", "No pudimos iniciar el cobro. Probá de nuevo.");
+  }
+});
+
+/**
+ * Aplica el resultado de un pago al pedido, de forma IDEMPOTENTE.
+ * La clave es el doc payments/{paymentId}: si ya existe, no hace nada
+ * (un webhook repetido de MercadoPago no cobra ni confirma dos veces).
+ */
+async function applyPayment(
+  tenantId: string,
+  orderId: string,
+  paymentId: string,
+  approved: boolean,
+  amount: number,
+  provider: "mercadopago" | "simulado",
+): Promise<void> {
+  const paymentRef = db.doc(`tenants/${tenantId}/payments/${paymentId}`);
+  const orderRef = db.doc(`tenants/${tenantId}/orders/${orderId}`);
+
+  await db.runTransaction(async (tx) => {
+    const [paymentSnap, orderSnap] = await Promise.all([tx.get(paymentRef), tx.get(orderRef)]);
+    if (paymentSnap.exists) return; // ya procesado
+
+    const now = Date.now();
+    tx.set(paymentRef, {
+      orderId,
+      provider,
+      status: approved ? "approved" : "rejected",
+      amount,
+      createdAt: now,
+    });
+
+    if (!orderSnap.exists) return; // pago sin pedido: solo se audita
+    const order = orderSnap.data()!;
+
+    if (approved) {
+      tx.update(orderRef, {
+        paymentStatus: "paid",
+        // Recién ahora el pedido se vuelve visible para el comercio.
+        ...(order.status === "pendiente_pago" ? { status: "por_confirmar" } : {}),
+        updatedAt: now,
+      });
+    } else if (order.status === "pendiente_pago") {
+      tx.update(orderRef, { status: "rechazado", updatedAt: now });
+    }
+  });
+}
+
+/**
+ * Webhook de MercadoPago (idempotente). Se ejercita cuando hay credenciales:
+ * MP notifica un pago, consultamos su estado y confirmamos el pedido.
+ * La notification_url se configura por comercio con ?tenant=<id>.
+ */
+export const mpWebhook = onRequest(async (req, res) => {
+  const paymentId = String(
+    req.query["data.id"] ?? (req.body as { data?: { id?: string } })?.data?.id ?? req.query.id ?? "",
+  );
+  const tenantId = String(req.query.tenant ?? "");
+  if (!paymentId || !tenantId) {
+    res.status(200).send("ignored");
+    return;
+  }
+  const mpCreds = (await db.doc(`tenants/${tenantId}/private/mp`).get()).data() as
+    | { accessToken?: string }
+    | undefined;
+  const payment = await fetchPayment(paymentId, mpCreds);
+  if (!payment) {
+    res.status(200).send("no-data");
+    return;
+  }
+  const orderId = payment.externalReference.split(":")[1] ?? "";
+  if (orderId) {
+    await applyPayment(
+      tenantId,
+      orderId,
+      `mp-${paymentId}`,
+      payment.status === "approved",
+      payment.amount,
+      "mercadopago",
+    );
+  }
+  res.status(200).send("ok");
+});
+
+/**
+ * Pago SIMULADO — solo en el emulador. Cierra el loop de cobro sin MP real:
+ * la página /pago-simulado lo llama para aprobar o rechazar el pedido.
+ * Usa el MISMO applyPayment que el webhook, así la lógica de acreditación
+ * (idempotencia, transición de estados) queda probada de verdad.
+ */
+export const simulatePayment = onCall(async (request) => {
+  if (process.env.FUNCTIONS_EMULATOR !== "true") {
+    throw new HttpsError("permission-denied", "Solo disponible en desarrollo.");
+  }
+  const data = (request.data ?? {}) as { tenantId?: string; orderId?: string; approve?: boolean };
+  const tenantId = data.tenantId ?? "";
+  const orderId = data.orderId ?? "";
+  if (!TENANT_ID_RE.test(tenantId) || !orderId) {
+    throw new HttpsError("invalid-argument", "Datos inválidos.");
+  }
+  const orderSnap = await db.doc(`tenants/${tenantId}/orders/${orderId}`).get();
+  const order = orderSnap.data();
+  if (!order) throw new HttpsError("not-found", "El pedido no existe.");
+
+  await applyPayment(
+    tenantId,
+    orderId,
+    `sim-${orderId}`,
+    data.approve !== false,
+    (order.total as number) ?? 0,
+    "simulado",
+  );
+  return { ok: true, approved: data.approve !== false };
 });
 
 const RESERVED_SUBDOMAINS = new Set(["www", "app", "api", "admin", "panel"]);

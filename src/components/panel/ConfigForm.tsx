@@ -111,6 +111,11 @@ export function ConfigForm({ tenantId }: { tenantId: string }) {
     await save({ ...baseConfig(), orderMode: "whatsapp", whatsapp: num });
   }
 
+  async function toggleMp() {
+    const base = baseConfig();
+    await save({ ...base, mpEnabled: !base.mpEnabled });
+  }
+
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
@@ -177,6 +182,29 @@ export function ConfigForm({ tenantId }: { tenantId: string }) {
             <Button type="submit">Activar WhatsApp</Button>
           </form>
         )}
+      </Card>
+
+      <Card className="mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <CardTitle>Cobros online (MercadoPago)</CardTitle>
+              {config?.mpEnabled ? (
+                <Badge tone="primary">Activo</Badge>
+              ) : (
+                <Badge tone="neutral">Desactivado</Badge>
+              )}
+            </div>
+            <CardDescription>
+              Cobrá con MercadoPago desde el checkout de tu tienda. Hoy funciona
+              en modo simulación (pantalla de prueba); para cobrar de verdad vas
+              a conectar tu cuenta de MercadoPago.
+            </CardDescription>
+          </div>
+          <Button variant={config?.mpEnabled ? "secondary" : "primary"} onClick={toggleMp}>
+            {config?.mpEnabled ? "Desactivar" : "Activar"}
+          </Button>
+        </div>
       </Card>
 
       <Card className="mt-4">

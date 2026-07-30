@@ -24,6 +24,8 @@ interface CreateOrderResult {
   number: number;
   total: number;
   status: string;
+  /** Solo en MercadoPago: URL del checkout (real o simulado) a la que redirigir. */
+  checkoutUrl?: string;
 }
 
 /** Resultado del checkout: pedido por app (con tracking) o por WhatsApp. */
@@ -39,6 +41,7 @@ export function Cart({ tenantId }: { tenantId: string }) {
   const [orderMode, setOrderMode] = useState<OrderMode>("app");
   const [whatsapp, setWhatsapp] = useState<string | undefined>(undefined);
   const [tenantName, setTenantName] = useState<string>("");
+  const [mpEnabled, setMpEnabled] = useState(false);
 
   // Estado abierto/cerrado, zonas y modo de pedido en vivo: si el local pausa
   // pedidos con el carrito armado, el checkout se bloquea al instante.
@@ -50,6 +53,7 @@ export function Cart({ tenantId }: { tenantId: string }) {
       setOrderMode(data?.config?.orderMode ?? "app");
       setWhatsapp(data?.config?.whatsapp);
       setTenantName(data?.branding?.name ?? "");
+      setMpEnabled(data?.config?.mpEnabled === true);
     });
   }, [tenantId]);
 
@@ -104,6 +108,7 @@ export function Cart({ tenantId }: { tenantId: string }) {
           zones={zones}
           whatsapp={isWhatsApp ? whatsapp : undefined}
           tenantName={tenantName}
+          mpEnabled={mpEnabled}
           onClose={() => setStep("closed")}
           onDone={(r) => {
             cart.clear();
@@ -148,6 +153,7 @@ function CheckoutForm({
   zones,
   whatsapp,
   tenantName,
+  mpEnabled,
   onClose,
   onDone,
 }: {
@@ -156,18 +162,23 @@ function CheckoutForm({
   /** Si viene, el pedido sale por WhatsApp a este número (Plan Presencia). */
   whatsapp?: string;
   tenantName: string;
+  mpEnabled: boolean;
   onClose: () => void;
   onDone: (r: DoneResult) => void;
 }) {
   const cart = useCart();
   const [channel, setChannel] = useState<OrderChannel>("takeaway");
   const [zoneId, setZoneId] = useState<string>("");
+  const [payMethod, setPayMethod] = useState<"cash" | "mercadopago">("cash");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const zone = zones.find((z) => z.id === zoneId);
   const deliveryFee = channel === "delivery" && zone ? zone.fee : 0;
   const totalToPay = cart.total + deliveryFee;
+  // El selector de pago solo aplica al modo app (no WhatsApp) y si el
+  // comercio habilitó cobros online.
+  const showPay = !whatsapp && mpEnabled;
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -194,6 +205,7 @@ function CheckoutForm({
       return;
     }
 
+    const paymentMethod = showPay ? payMethod : "cash";
     const input: CreateOrderInput = {
       tenantId,
       items: cart.items.map((i) => ({ productId: i.productId, qty: i.qty })),
@@ -202,7 +214,8 @@ function CheckoutForm({
       ...(address ? { address } : {}),
       ...(channel === "delivery" && zoneId ? { zoneId } : {}),
       ...(notes ? { notes } : {}),
-      paymentMethod: "cash",
+      paymentMethod,
+      ...(paymentMethod === "mercadopago" ? { baseUrl: window.location.origin } : {}),
     };
     setBusy(true);
     setError(null);
@@ -212,6 +225,11 @@ function CheckoutForm({
         "createOrder",
       );
       const { data } = await call(input);
+      // MercadoPago: redirigir al checkout (real o simulado).
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
       onDone({ kind: "app", data });
     } catch (err) {
       setError(
@@ -298,13 +316,34 @@ function CheckoutForm({
           </>
         )}
         <Input label="Aclaraciones (opcional)" name="notes" placeholder="Ej: sin cebolla" />
+
+        {showPay && (
+          <div>
+            <p className="text-sm font-medium text-strong">¿Cómo querés pagar?</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <ChannelButton
+                active={payMethod === "cash"}
+                onClick={() => setPayMethod("cash")}
+                label="Efectivo"
+              />
+              <ChannelButton
+                active={payMethod === "mercadopago"}
+                onClick={() => setPayMethod("mercadopago")}
+                label="MercadoPago"
+              />
+            </div>
+          </div>
+        )}
+
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button type="submit" disabled={busy || cart.count === 0}>
           {busy
             ? "Enviando…"
             : whatsapp
               ? `Pedir por WhatsApp · ${formatARS(totalToPay)}`
-              : `Confirmar pedido · efectivo · ${formatARS(totalToPay)}`}
+              : showPay && payMethod === "mercadopago"
+                ? `Pagar con MercadoPago · ${formatARS(totalToPay)}`
+                : `Confirmar pedido · efectivo · ${formatARS(totalToPay)}`}
         </Button>
       </form>
     </Card>

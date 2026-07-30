@@ -31,7 +31,9 @@ export function StatsCards({ tenantId }: { tenantId: string }) {
   }, [tenantId]);
 
   const stats = useMemo(() => {
-    const valid = (orders ?? []).filter((o) => o.status !== "rechazado");
+    const valid = (orders ?? []).filter(
+      (o) => o.status !== "rechazado" && o.status !== "pendiente_pago",
+    );
     const sales = valid.reduce((sum, o) => sum + o.total, 0);
     const cashPending = valid
       .filter((o) => o.paymentStatus === "pending")

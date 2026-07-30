@@ -48,6 +48,12 @@ beforeAll(async () => {
       });
       await setDoc(doc(db, `tenants/${t}/products/prod-1`), { name: "Producto", price: 500 });
       await setDoc(doc(db, `tenants/${t}/customers/cust-1`), { phone: "+54..." });
+      await setDoc(doc(db, `tenants/${t}/payments/pay-1`), {
+        orderId: "order-1",
+        provider: "simulado",
+        status: "approved",
+        amount: 1000,
+      });
       await setDoc(doc(db, `tenants/${t}/tracking/order-1`), {
         number: 1,
         status: "recibido",
@@ -295,6 +301,35 @@ describe("lista negra de teléfonos (staff del tenant)", () => {
   it("DENIEGA a un anónimo leer la blocklist", async () => {
     const db = env.unauthenticatedContext().firestore();
     await assertFails(getDoc(doc(db, "tenants/resto-a/blocklist/1155550000")));
+  });
+});
+
+describe("eventos de pago (staff lee, nadie escribe)", () => {
+  it("PERMITE al staff ver los pagos de su tenant", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertSucceeds(getDoc(doc(dbA, "tenants/resto-a/payments/pay-1")));
+    await assertSucceeds(getDocs(collection(dbA, "tenants/resto-a/payments")));
+  });
+
+  it("DENIEGA al staff de A ver los pagos de B", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(getDoc(doc(dbA, "tenants/resto-b/payments/pay-1")));
+  });
+
+  it("DENIEGA escribir un pago desde el cliente (solo webhook/simulador)", async () => {
+    const dbA = env.authenticatedContext("user-a", OWNER_A).firestore();
+    await assertFails(
+      setDoc(doc(dbA, "tenants/resto-a/payments/hackeo"), {
+        orderId: "order-1",
+        status: "approved",
+        amount: 1,
+      }),
+    );
+  });
+
+  it("DENIEGA a un anónimo leer los pagos", async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(db, "tenants/resto-a/payments/pay-1")));
   });
 });
 

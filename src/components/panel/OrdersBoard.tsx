@@ -26,6 +26,7 @@ const SECTIONS: { title: string; statuses: OrderStatus[] }[] = [
 ];
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
+  pendiente_pago: "Esperando pago",
   por_confirmar: "Por confirmar",
   recibido: "Recibido",
   en_preparacion: "En preparación",
