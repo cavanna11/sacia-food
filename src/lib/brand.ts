@@ -5,12 +5,12 @@
  * landing sale de acá, así que cambiar la marca es tocar SOLO este archivo.
  */
 export const BRAND = {
-  name: "Comandá",
+  name: "iaPedí",
   /** Claim corto. */
   tagline: "Tu tienda de pedidos, sin comisiones.",
-  /** Dominio (placeholder hasta comprarlo). */
-  domain: "comanda.com.ar",
-  email: "hola@comanda.com.ar",
+  /** Dominio. */
+  domain: "iapedi.com",
+  email: "hola@iapedi.com",
   /** Redes (placeholder). */
   instagram: "https://instagram.com/",
   whatsapp: "https://wa.me/",
