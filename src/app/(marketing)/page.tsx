@@ -1,5 +1,7 @@
 import Image from "next/image";
+import type { CSSProperties } from "react";
 import heroDemo from "@/assets/hero-demo.png";
+import { IconBell, IconCheck } from "@/components/ui/icons";
 import { Comparison } from "@/components/landing/Comparison";
 import { Faq } from "@/components/landing/Faq";
 import { Features } from "@/components/landing/Features";
@@ -110,14 +112,59 @@ export default function Home() {
           </p>
         </div>
         <div data-hero className="flex justify-center lg:justify-end">
-          <Image
-            src={heroDemo}
-            alt="La tienda de un comercio vista desde el celular del cliente"
-            preload
-            placeholder="blur"
-            sizes="(max-width: 1024px) 80vw, 440px"
-            className="h-auto w-full max-w-[400px] drop-shadow-2xl"
-          />
+          <div className="relative mx-auto w-full max-w-[400px]">
+            <Image
+              src={heroDemo}
+              alt="La tienda de un comercio vista desde el celular del cliente"
+              preload
+              placeholder="blur"
+              sizes="(max-width: 1024px) 80vw, 440px"
+              className="h-auto w-full drop-shadow-2xl"
+            />
+
+            {/* Chip: pedido nuevo */}
+            <div
+              className="hero-chip absolute left-0 top-[13%] hidden -translate-x-4 md:block"
+              style={{ animationDelay: "0.3s", "--float": "4.5s" } as CSSProperties}
+            >
+              <div className="floaty flex items-center gap-2.5 rounded-2xl border border-border-soft bg-card px-3.5 py-2.5 shadow-xl">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <IconBell size={16} />
+                </span>
+                <div className="leading-tight">
+                  <p className="text-xs font-semibold">Pedido nuevo 🛎</p>
+                  <p className="text-[11px] text-muted">Retiro · $ 8.500</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Chip: 0% comisión */}
+            <div
+              className="hero-chip absolute right-0 top-[40%] hidden translate-x-4 md:block"
+              style={{ animationDelay: "0.5s", "--float": "5.5s" } as CSSProperties}
+            >
+              <div className="floaty rounded-2xl border border-border-soft bg-card px-4 py-2.5 text-center shadow-xl">
+                <p className="text-2xl font-black leading-none text-primary">0%</p>
+                <p className="text-[11px] font-medium text-muted">comisión</p>
+              </div>
+            </div>
+
+            {/* Chip: cobrado */}
+            <div
+              className="hero-chip absolute bottom-[14%] left-0 hidden -translate-x-3 md:block"
+              style={{ animationDelay: "0.7s", "--float": "6s" } as CSSProperties}
+            >
+              <div className="floaty flex items-center gap-2.5 rounded-2xl border border-border-soft bg-card px-3.5 py-2.5 shadow-xl">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-600">
+                  <IconCheck size={16} />
+                </span>
+                <div className="leading-tight">
+                  <p className="text-xs font-semibold">Cobrado</p>
+                  <p className="text-[11px] text-muted">MercadoPago · directo a vos</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

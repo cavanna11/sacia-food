@@ -55,3 +55,39 @@ body {
   color: var(--text-strong);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/* Chips flotantes del hero: entran con fade+slide y flotan suave en loop. */
+@keyframes iap-chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes iap-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+.hero-chip {
+  opacity: 0;
+  animation: iap-chip-in 0.6s ease-out forwards;
+}
+.hero-chip > .floaty {
+  animation: iap-float var(--float, 5s) ease-in-out infinite;
+  animation-delay: 0.8s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-chip,
+  .hero-chip > .floaty {
+    animation: none;
+    opacity: 1;
+  }
+}
